@@ -9,7 +9,7 @@ export interface IUser extends Document {
   position: string;
   password: string;
   role: 'user' | 'super-admin' | 'admin';
-  joiningDate?: Date; // Optional joining date
+  joinedDate?: Date; //
   // profile zurag talbar
   createdBy?: Types.ObjectId; // Хэн үүсгэсэн
 }
@@ -29,7 +29,7 @@ const userSchema = new Schema<IUser>(
       default: 'user',
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Хэн үүсгэсэн
-    joiningDate: { type: Date }, // Joining date with default value
+    joinedDate: { type: Date },
   },
   {
     timestamps: true, // createdAt, updatedAt auto

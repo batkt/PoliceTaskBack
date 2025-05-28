@@ -12,5 +12,5 @@ export type CreateUserType = {
   branchId: string; // Салбарын ID
   role?: 'user' | 'admin' | 'super-admin'; // Хэрэглэгчийн үүрэг (хэрэв байгаа бол)
   password: string; // Нууц үг
-  joiningDate?: Date; // Нэгдсэн огноо (хэрэв байгаа бол)
+  joinedDate?: Date; // Нэгдсэн огноо (хэрэв байгаа бол)
 };

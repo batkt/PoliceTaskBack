@@ -7,9 +7,15 @@ export const userSchema = {
     givenname: z.string(),
     position: z.string(),
     rank: z.string(),
-    branchId: z.string().uuid('Салбарын ID формат буруу байна.'),
+    branchId: z.string().refine((val) => val.length === 24, {
+      message: 'Салбарын ID формат буруу байна.',
+    }),
     role: z.enum(['user', 'admin', 'super-admin']).default('user'),
     password: z.string(),
-    joiningDate: z.date().optional(),
+    joinedDate: z.string().date().optional(),
+  }),
+  list: z.object({
+    page: z.number().optional(),
+    pageSize: z.number().optional(),
   }),
 };
