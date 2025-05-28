@@ -10,6 +10,7 @@ import errorHandler from './middleware/error.middleware';
 import { authRouter } from './modules/auth/auth.route';
 import { userRouter } from './modules/user/user.route';
 import { branchRouter } from './modules/branch/branch.route';
+import { taskRouter } from './modules/task/task.route';
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/branch', branchRouter);
+app.use('/api/task', taskRouter);
 
 // Global error handler
 app.use(errorHandler);
