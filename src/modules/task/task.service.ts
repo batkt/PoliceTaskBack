@@ -1,7 +1,9 @@
+import { FilterQuery } from 'mongoose';
 import { AppError } from '../../middleware/error.middleware';
+import { Pagination } from '../../types/pagination';
 import { AuthUserType } from '../user/user.types';
 import { MemoModel } from './memo/memo.model';
-import { TaskModel } from './task.model';
+import { ITask, TaskModel } from './task.model';
 import {
   CreateMemoTaskType,
   CreateTaskType,
@@ -23,15 +25,22 @@ export class TaskService {
       );
     }
 
+    const startDate = new Date(taskData.startDate);
+    const now = new Date();
+    let status = 'pending';
+    if (startDate < now) {
+      status = 'active';
+    }
     // Register new user
     const newTask = new TaskModel({
       ...taskData,
+      status,
       createdBy: user.id,
     });
 
     await newTask.save();
 
-    // Notification uusgeh
+    // // Notification uusgeh
 
     return newTask.toObject();
   };
@@ -43,6 +52,7 @@ export class TaskService {
       endDate,
       title,
       description,
+      priority,
       ...memoTaskData
     } = taskData;
     const newTask = await this.create(user, {
@@ -52,6 +62,7 @@ export class TaskService {
       startDate,
       endDate,
       type: 'memo',
+      priority,
     });
 
     await MemoModel.create({
@@ -60,6 +71,7 @@ export class TaskService {
     });
 
     return newTask;
+    // return '';
   };
 
   createWorkGroupTask = async (
@@ -72,6 +84,7 @@ export class TaskService {
       endDate,
       title,
       description,
+      priority,
       ...workGroupTaskData
     } = taskData;
     const newTask = await this.create(user, {
@@ -81,6 +94,7 @@ export class TaskService {
       startDate,
       endDate,
       type: 'work-group',
+      priority,
     });
 
     await WorkGroupModel.create({
@@ -90,29 +104,51 @@ export class TaskService {
 
     return newTask;
   };
-  // getList = async ({
-  //   page = 1,
-  //   pageSize = 10,
-  //   sortBy = '_id',
-  //   sortDirection = 'desc',
-  // }: Pagination) => {
-  //   // Get users with pagination
-  //   const skip = (page - 1) * pageSize;
 
-  //   const users = await UserModel.find()
-  //     .select('-password -__v -createdAt -updatedAt')
-  //     .populate('branch', '_id name isParent')
-  //     .sort({ [sortBy]: sortDirection })
-  //     .skip(skip)
-  //     .limit(pageSize);
+  getList = async ({
+    page = 1,
+    pageSize = 10,
+    sortBy = 'createdAt',
+    sortDirection = 'desc',
+    filters = {},
+  }: Pagination & {
+    filters?: FilterQuery<ITask>;
+  }) => {
+    const skip = (page - 1) * pageSize;
 
-  //   const total = await UserModel.countDocuments();
+    const tasks = await TaskModel.find(filters)
+      .select('-__v -createdAt -updatedAt')
+      .populate('assigner', '_id givenname surname position rank')
+      .sort({ [sortBy]: sortDirection })
+      .skip(skip)
+      .limit(pageSize);
 
-  //   return {
-  //     currentPage: page,
-  //     rows: users,
-  //     total,
-  //     totalPages: Math.ceil(total / pageSize),
-  //   };
-  // };
+    const total = await TaskModel.find(filters).countDocuments();
+
+    return {
+      currentPage: page,
+      rows: tasks,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  };
+
+  getAll = async (status?: string) => {
+    const filter =
+      status && status !== 'all'
+        ? {
+            status,
+          }
+        : {};
+    console.log(filter);
+    const tasks = TaskModel.find(filter)
+      .populate({
+        path: 'assigner',
+        select: '_id givenname surname rank position workerId',
+      })
+      .sort({
+        createdAt: 'desc',
+      });
+    return tasks;
+  };
 }

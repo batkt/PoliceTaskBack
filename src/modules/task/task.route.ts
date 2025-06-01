@@ -16,10 +16,13 @@ router.post(
 );
 
 router.post(
-  '/createMemoTask',
+  '/createWorkGroupTask',
   authenticate,
   validateRequestBody(taskSchema.createWorkGroupTask),
   taskController.createWorkGroupTask
 );
 
+router.get('/list', authenticate, taskController.getList);
+
+router.get('/all', authenticate, taskController.getAll);
 export { router as taskRouter };

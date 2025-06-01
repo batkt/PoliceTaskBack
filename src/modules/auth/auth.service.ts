@@ -2,7 +2,7 @@ import { AppError } from '../../middleware/error.middleware';
 import { generateAccessToken } from '../../utils/jwt.util';
 import { comparePassword, hashPassword } from '../../utils/password.util';
 import { UserModel } from '../user/user.model';
-import { RegisterAdminType } from './autrh.types';
+import { RegisterAdminType } from './auth.types';
 
 interface DeviceInfo {
   userAgent: string;
@@ -13,7 +13,7 @@ export class AuthService {
   async login(workerId: string, password: string) {
     // Find user
     const user = await UserModel.findOne({
-      workerId: workerId,
+      workerId: { $regex: `^${workerId}$`, $options: 'i' },
     });
 
     if (!user) {

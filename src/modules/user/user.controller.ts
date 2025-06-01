@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { UserService } from './user.service';
+import { IUser } from './user.model';
+import { parseFilters } from '../../utils/filter.util';
 
 export class UserController {
   private userService: UserService;
@@ -28,11 +30,20 @@ export class UserController {
       const sortBy = (req.query.sortBy as string) || '_id';
       const sortDirection =
         (req.query.sortOrder as string) === 'asc' ? 'asc' : 'desc';
+
+      let filters;
+      if (req.query.filters) {
+        const filtersJson = JSON.parse(
+          decodeURIComponent(req.query.filters as string)
+        );
+        filters = parseFilters<IUser>(filtersJson);
+      }
       const user = await this.userService.getList({
         page,
         pageSize,
         sortBy,
         sortDirection,
+        filters,
       });
       res.status(201).json({
         code: 200,

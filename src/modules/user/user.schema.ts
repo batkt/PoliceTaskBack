@@ -15,7 +15,7 @@ export const userSchema = {
     joinedDate: z.string().date().optional(),
   }),
   list: z.object({
-    page: z.number().optional(),
-    pageSize: z.number().optional(),
+    page: z.string().optional(),
+    pageSize: z.string().optional(),
   }),
 };

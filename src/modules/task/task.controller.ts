@@ -1,5 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { TaskService } from './task.service';
+import { ITask } from './task.model';
+import { FilterQuery } from 'mongoose';
 
 export class TaskController {
   private taskService: TaskService;
@@ -35,6 +37,51 @@ export class TaskController {
       res.status(201).json({
         code: 200,
         data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getAll = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const status = req.query?.status as string;
+      console.log('cont ', status);
+      const task = await this.taskService.getAll(status);
+      res.status(201).json({
+        code: 200,
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getList = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const sortBy = (req.query.sortBy as string) || 'createdAt';
+      const sortDirection =
+        (req.query.sortOrder as string) === 'asc' ? 'asc' : 'desc';
+      const status = req.query.status as string;
+
+      let filters: FilterQuery<ITask> = {};
+      if (status && status !== 'all') {
+        filters.status = status;
+      }
+
+      const tasks = await this.taskService.getList({
+        page,
+        pageSize,
+        sortBy,
+        sortDirection,
+        filters,
+      });
+
+      res.status(201).json({
+        code: 200,
+        data: tasks,
       });
     } catch (error) {
       next(error);

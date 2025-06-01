@@ -4,6 +4,11 @@ const objectIdSchema = z.string().refine((val) => val.length === 24, {
   message: 'Гишүүн ID формат буруу байна.',
 });
 
+const dateSchema = z.preprocess((val) => {
+  const d = new Date(val as string);
+  return isNaN(d.getTime()) ? undefined : d;
+}, z.date());
+
 export const taskSchema = {
   createMemoTask: z.object({
     title: z.string(),
@@ -11,12 +16,12 @@ export const taskSchema = {
     assigner: z.string().refine((val) => val.length === 24, {
       message: 'Хариуцагч ID формат буруу байна.',
     }),
-    startDate: z.string().date(),
-    endDate: z.string().date(),
+    startDate: dateSchema,
+    endDate: dateSchema,
     documentNumber: z.string(),
     marking: z.string().optional(),
     markingVoiceUrl: z.string().optional(),
-    markingDate: z.string().date().optional(),
+    markingDate: dateSchema.optional(),
   }),
 
   createWorkGroupTask: z.object({
@@ -25,16 +30,19 @@ export const taskSchema = {
     leader: z.string().refine((val) => val.length === 24, {
       message: 'Хариуцагч ID формат буруу байна.',
     }),
+    assigner: z.string().refine((val) => val.length === 24, {
+      message: 'Хариуцагч ID формат буруу байна.',
+    }),
     members: z
       .array(objectIdSchema)
       .refine((arr) => arr.every((val) => val.length === 24), {
         message: 'Гишүүн ID формат буруу байна.',
       }),
-    startDate: z.string().date(),
-    endDate: z.string().date(),
+    startDate: dateSchema,
+    endDate: dateSchema,
     name: z.string(),
     marking: z.string().optional(),
     markingVoiceUrl: z.string().optional(),
-    markingDate: z.string().date().optional(),
+    markingDate: dateSchema.optional(),
   }),
 };

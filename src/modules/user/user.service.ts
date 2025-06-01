@@ -1,8 +1,9 @@
+import { FilterQuery } from 'mongoose';
 import { AppError } from '../../middleware/error.middleware';
 import { Pagination } from '../../types/pagination';
 import { hashPassword } from '../../utils/password.util';
 import { AuthUserType, CreateUserType } from '../user/user.types';
-import { UserModel } from './user.model';
+import { IUser, UserModel } from './user.model';
 
 export class UserService {
   register = async (user: AuthUserType, userData: CreateUserType) => {
@@ -49,18 +50,21 @@ export class UserService {
     pageSize = 10,
     sortBy = '_id',
     sortDirection = 'desc',
-  }: Pagination) => {
+    filters = {},
+  }: Pagination & {
+    filters?: FilterQuery<IUser>;
+  }) => {
     // Get users with pagination
     const skip = (page - 1) * pageSize;
 
-    const users = await UserModel.find()
+    const users = await UserModel.find(filters)
       .select('-password -__v -createdAt -updatedAt')
       .populate('branch', '_id name isParent')
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(pageSize);
 
-    const total = await UserModel.countDocuments();
+    const total = await UserModel.find(filters).countDocuments();
 
     return {
       currentPage: page,

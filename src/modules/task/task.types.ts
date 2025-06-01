@@ -2,16 +2,17 @@ export type CreateTaskType = {
   title: string;
   description?: string;
   assigner: string;
-  startDate?: Date; //
-  endDate?: Date; //
+  startDate: string; //
+  endDate: string; //
   type: string;
+  priority?: 'low' | 'medium' | 'high';
 };
 
 export type CreateMemoTaskType = Omit<CreateTaskType, 'type'> & {
   documentNumber: string; //
   marking?: string; //
   markingVoiceUrl?: string;
-  markingDate?: Date;
+  markingDate?: string;
 };
 
 export type CreateWorkGroupTaskType = Omit<CreateTaskType, 'type'> & {
@@ -20,5 +21,5 @@ export type CreateWorkGroupTaskType = Omit<CreateTaskType, 'type'> & {
   members: string[];
   marking?: string; //
   markingVoiceUrl?: string;
-  markingDate?: Date;
+  markingDate?: string;
 };
