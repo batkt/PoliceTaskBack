@@ -9,7 +9,7 @@ const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET!;
 
 export const generateAccessToken = (payload: Payload): string => {
   return jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-    expiresIn: '15m',
+    expiresIn: '4h',
   });
 };
 
