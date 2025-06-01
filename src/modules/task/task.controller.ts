@@ -46,7 +46,6 @@ export class TaskController {
   getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const status = req.query?.status as string;
-      console.log('cont ', status);
       const task = await this.taskService.getAll(status);
       res.status(201).json({
         code: 200,

@@ -140,7 +140,6 @@ export class TaskService {
             status,
           }
         : {};
-    console.log(filter);
     const tasks = TaskModel.find(filter)
       .populate({
         path: 'assigner',
