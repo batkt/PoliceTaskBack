@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { UserService } from './user.service';
 import { IUser } from './user.model';
-import { parseFilters } from '../../utils/filter.util';
+import { escapeRegex, parseFilters } from '../../utils/filter.util';
+import { FilterQuery } from 'mongoose';
 
 export class UserController {
   private userService: UserService;
@@ -27,17 +28,17 @@ export class UserController {
     try {
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
-      const sortBy = (req.query.sortBy as string) || '_id';
+      const sortBy = (req.query.sort as string) || '_id';
       const sortDirection =
-        (req.query.sortOrder as string) === 'asc' ? 'asc' : 'desc';
+        (req.query.order as string) === 'asc' ? 'asc' : 'desc';
 
-      let filters;
-      if (req.query.filters) {
-        const filtersJson = JSON.parse(
-          decodeURIComponent(req.query.filters as string)
-        );
-        filters = parseFilters<IUser>(filtersJson);
+      const givenname = req.query.givenname as string;
+
+      let filters: FilterQuery<IUser> = {};
+      if (givenname) {
+        filters.givenname = { $regex: escapeRegex(givenname), $options: 'i' };
       }
+
       const user = await this.userService.getList({
         page,
         pageSize,
@@ -45,7 +46,7 @@ export class UserController {
         sortDirection,
         filters,
       });
-      res.status(201).json({
+      res.status(200).json({
         code: 200,
         data: user,
       });

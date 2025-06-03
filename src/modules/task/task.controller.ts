@@ -58,23 +58,28 @@ export class TaskController {
 
   getList = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authUser = req.user!;
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
-      const sortBy = (req.query.sortBy as string) || 'createdAt';
-      const sortDirection =
-        (req.query.sortOrder as string) === 'asc' ? 'asc' : 'desc';
+      const sort = (req.query.sort as string) || 'createdAt';
+      const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
       const status = req.query.status as string;
+      const me = req.query.onlyMe as string;
 
       let filters: FilterQuery<ITask> = {};
       if (status && status !== 'all') {
         filters.status = status;
       }
 
+      if (me && me === 'true') {
+        filters.assigner = authUser.id;
+      }
+
       const tasks = await this.taskService.getList({
         page,
         pageSize,
-        sortBy,
-        sortDirection,
+        sortBy: sort,
+        sortDirection: order,
         filters,
       });
 

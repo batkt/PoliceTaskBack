@@ -10,8 +10,15 @@ import {
   CreateWorkGroupTaskType,
 } from './task.types';
 import { WorkGroupModel } from './work-group/work-group.mode';
+import { NotificationService } from '../notification/notification.service';
 
 export class TaskService {
+  private notificationService: NotificationService;
+
+  constructor() {
+    this.notificationService = new NotificationService();
+  }
+
   create = async (user: AuthUserType, taskData: CreateTaskType) => {
     if (
       taskData?.assigner &&
@@ -39,8 +46,6 @@ export class TaskService {
     });
 
     await newTask.save();
-
-    // // Notification uusgeh
 
     return newTask.toObject();
   };
@@ -70,8 +75,16 @@ export class TaskService {
       task: newTask._id,
     });
 
+    if (user.id !== assigner) {
+      await this.notificationService.createNotification({
+        title: 'Төлөвлөгөө.',
+        type: 'job',
+        message: 'Танд "Албан бичиг" төрлийн шинэ төлөвлөгөө хуваариллаа.',
+        userId: assigner,
+        taskId: newTask?._id as string,
+      });
+    }
     return newTask;
-    // return '';
   };
 
   createWorkGroupTask = async (
@@ -102,6 +115,15 @@ export class TaskService {
       task: newTask._id,
     });
 
+    if (user.id !== assigner) {
+      await this.notificationService.createNotification({
+        title: 'Төлөвлөгөө.',
+        type: 'job',
+        message: 'Танд "Ажлын хэсэг" төрлийн шинэ төлөвлөгөө хуваариллаа.',
+        userId: assigner,
+        taskId: newTask?._id as string,
+      });
+    }
     return newTask;
   };
 
