@@ -5,6 +5,6 @@ export let io: Server;
 
 export function initSocket(server: any): void {
   io = new Server(server, {
-    cors: { origin: '*' },
+    cors: { origin: '*', methods: ['GET', 'POST'], credentials: true },
   });
 }
