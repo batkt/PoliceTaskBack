@@ -5,6 +5,10 @@ export let io: Server;
 
 export function initSocket(server: any): void {
   io = new Server(server, {
-    cors: { origin: '*' },
+    cors: {
+      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
   });
 }
