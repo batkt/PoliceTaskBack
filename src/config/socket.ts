@@ -11,4 +11,7 @@ export function initSocket(server: any): void {
       credentials: true,
     },
   });
+  console.log(
+    `Socket ready: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`
+  );
 }
