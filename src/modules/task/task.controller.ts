@@ -91,4 +91,47 @@ export class TaskController {
       next(error);
     }
   };
+
+  changeStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+      const task = await this.taskService.changeStatus(authUser, req.body);
+      res.status(201).json({
+        code: 200,
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getMemoByTaskId = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const taskId = req.query.taskId as string;
+      const task = await this.taskService.getMemoByTaskId(taskId);
+      res.status(201).json({
+        code: 200,
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getWorkgroupByTaskId = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const taskId = req.query.taskId as string;
+      const task = await this.taskService.getWorkgroupByTaskId(taskId);
+      res.status(201).json({
+        code: 200,
+        data: task,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

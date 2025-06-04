@@ -45,4 +45,11 @@ export const taskSchema = {
     markingVoiceUrl: z.string().optional(),
     markingDate: dateSchema.optional(),
   }),
+  changeStatus: z.object({
+    taskId: z.string(),
+    status: z.string(),
+  }),
+  taskId: z.object({
+    taskId: z.string(),
+  }),
 };

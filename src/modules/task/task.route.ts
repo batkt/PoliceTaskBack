@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { validateRequestBody } from '../../middleware/validate.middleware';
+import {
+  validateRequestBody,
+  validateRequestQuery,
+} from '../../middleware/validate.middleware';
 import { authenticate } from '../../middleware/auth.middleware';
 import { taskSchema } from './task.schema';
 import { TaskController } from './task.controller';
@@ -24,5 +27,26 @@ router.post(
 
 router.get('/list', authenticate, taskController.getList);
 
+router.post(
+  '/changeStatus',
+  authenticate,
+  validateRequestBody(taskSchema.changeStatus),
+  taskController.changeStatus
+);
+
 router.get('/all', authenticate, taskController.getAll);
+
+router.get(
+  '/getMemoByTaskId',
+  authenticate,
+  validateRequestQuery(taskSchema.taskId),
+  taskController.getMemoByTaskId
+);
+router.get(
+  '/getWorkgroupByTaskId',
+  authenticate,
+  validateRequestQuery(taskSchema.taskId),
+  taskController.getWorkgroupByTaskId
+);
+
 export { router as taskRouter };

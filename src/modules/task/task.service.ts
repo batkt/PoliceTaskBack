@@ -141,6 +141,7 @@ export class TaskService {
     const tasks = await TaskModel.find(filters)
       .select('-__v -createdAt -updatedAt')
       .populate('assigner', '_id givenname surname position rank')
+      .populate('createdBy', '_id givenname surname position rank')
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(pageSize);
@@ -171,5 +172,55 @@ export class TaskService {
         createdAt: 'desc',
       });
     return tasks;
+  };
+
+  changeStatus = async (
+    user: AuthUserType,
+    data: {
+      status: 'pending' | 'active' | 'processing' | 'completed';
+      taskId: string;
+    }
+  ) => {
+    const task = await TaskModel.findById(data.taskId);
+    if (!task) {
+      throw new AppError(404, 'Төлөвлөгөө', 'Төлөвлөгөө олдсонгүй.');
+    }
+
+    if (task.assigner.toString() !== user.id) {
+      throw new AppError(
+        403,
+        'Төлөвлөгөө',
+        'Хүний төлөвлөгөөг засах боломжгүй.'
+      );
+    }
+
+    task.status = data.status;
+
+    if (task.createdBy && task.createdBy?.toString() !== user.id) {
+      await this.notificationService.createNotification({
+        title: 'Төлөвлөгөө.',
+        type: 'job',
+        message: 'Төлөвлөгөөний төлөв өөрчлөгдлөө.',
+        userId: task.createdBy.toString(),
+        taskId: task?._id as string,
+      });
+    }
+    // хадгална
+    await task.save();
+  };
+
+  getMemoByTaskId = (taskId: string) => {
+    return MemoModel.findOne({
+      task: taskId,
+    });
+  };
+
+  getWorkgroupByTaskId = async (taskId: string) => {
+    const workGroup = await WorkGroupModel.findOne({ task: taskId })
+      .populate('leader') // зөвхөн name талбарыг авах
+      .populate('members') // name талбаруудыг авах
+      .lean();
+
+    return workGroup;
   };
 }
