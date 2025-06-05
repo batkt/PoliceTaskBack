@@ -1,4 +1,8 @@
-export type NotificationType = 'job' | 'message' | 'system';
+export enum NotificationType {
+  TASK = 'task',
+  MESSAGE = 'message',
+  SYSTEM_MESSSAGE = 'system',
+}
 
 export interface NotificationPayload {
   userId: string;

@@ -81,7 +81,6 @@ export class NotificationService {
       { userId, seen: false },
       { $set: { seen: true } }
     );
-    console.log(res);
   }
 
   async markAsRead(notificationId: string): Promise<void> {

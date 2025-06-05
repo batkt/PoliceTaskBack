@@ -1,25 +1,13 @@
-import { Schema, model, Document, Types } from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
-export interface IEvaluation extends Document {
-  suggestion?: string; //
-  rating?: number; //
-  task?: Types.ObjectId;
-  createdBy?: Types.ObjectId; // Хэн үүсгэсэн
-}
-
-const evaluationSchema = new Schema<IEvaluation>(
+const EvaluationSchema = new Schema(
   {
-    suggestion: { type: String },
-    rating: { type: Number },
-    task: { type: Schema.Types.ObjectId, ref: 'Task' },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    task: { type: Schema.Types.ObjectId, ref: 'Task', required: true },
+    evaluator: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    score: { type: Number, min: 1, max: 5, required: true },
+    feedback: String,
   },
-  {
-    timestamps: true, // createdAt, updatedAt auto
-  }
+  { timestamps: true }
 );
 
-export const EvaluationModel = model<IEvaluation>(
-  'Evaluation',
-  evaluationSchema
-);
+export const EvaluationModel = mongoose.model('Evaluation', EvaluationSchema);

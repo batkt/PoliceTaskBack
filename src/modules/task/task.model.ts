@@ -11,7 +11,7 @@ export interface ITask extends Document {
   type: string;
   priority: 'medium' | 'low' | 'high' | 'very-high';
   // profile zurag talbar
-  createdBy?: Types.ObjectId; // Хэн үүсгэсэн
+  createdBy: Types.ObjectId; // Хэн үүсгэсэн
 }
 
 const taskSchema = new Schema<ITask>(
@@ -56,4 +56,4 @@ taskSchema.virtual('evaluations', {
 taskSchema.set('toObject', { virtuals: true });
 taskSchema.set('toJSON', { virtuals: true });
 
-export const TaskModel = model<ITask>('Task', taskSchema);
+export const TaskModel = model<ITask>('TaskOld', taskSchema);

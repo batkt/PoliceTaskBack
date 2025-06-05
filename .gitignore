@@ -13,3 +13,4 @@ dist/
 .npm
 # Optional eslint cache
 .eslintcache
+uploads*

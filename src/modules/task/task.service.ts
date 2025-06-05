@@ -11,6 +11,7 @@ import {
 } from './task.types';
 import { WorkGroupModel } from './work-group/work-group.mode';
 import { NotificationService } from '../notification/notification.service';
+import { NotificationType } from '../notification/notification.types';
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -78,7 +79,7 @@ export class TaskService {
     if (user.id !== assigner) {
       await this.notificationService.createNotification({
         title: 'Төлөвлөгөө.',
-        type: 'job',
+        type: NotificationType.TASK,
         message: 'Танд "Албан бичиг" төрлийн шинэ төлөвлөгөө хуваариллаа.',
         userId: assigner,
         taskId: newTask?._id as string,
@@ -118,7 +119,7 @@ export class TaskService {
     if (user.id !== assigner) {
       await this.notificationService.createNotification({
         title: 'Төлөвлөгөө.',
-        type: 'job',
+        type: NotificationType.TASK,
         message: 'Танд "Ажлын хэсэг" төрлийн шинэ төлөвлөгөө хуваариллаа.',
         userId: assigner,
         taskId: newTask?._id as string,
@@ -199,7 +200,7 @@ export class TaskService {
     if (task.createdBy && task.createdBy?.toString() !== user.id) {
       await this.notificationService.createNotification({
         title: 'Төлөвлөгөө.',
-        type: 'job',
+        type: NotificationType.TASK,
         message: 'Төлөвлөгөөний төлөв өөрчлөгдлөө.',
         userId: task.createdBy.toString(),
         taskId: task?._id as string,

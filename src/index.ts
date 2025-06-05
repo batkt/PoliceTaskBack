@@ -1,9 +1,11 @@
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import http from 'http';
+import cron from 'node-cron';
 
 dotenv.config();
 
@@ -18,6 +20,9 @@ import { initSocket, io, onlineUsers } from './config/socket';
 import { authenticate } from './middleware/auth.middleware';
 import { notificationRouter } from './modules/notification/notification.route';
 import { NotificationService } from './modules/notification/notification.service';
+import { fileRouter } from './modules/file/file.route';
+import { taskV2Router } from './modules/task-v2/task.route';
+import { FileService } from './modules/file/file.service';
 
 const app = express();
 
@@ -36,6 +41,9 @@ app.use(
     extended: true,
   })
 );
+// console.log('---------------', path.join(__dirname, '../uploads'));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// app.set('trust proxy', true);
 
 app.get('/', async (_req, res) => {
   res.send('Hello world!');
@@ -50,8 +58,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/branch', branchRouter);
 app.use('/api/task', taskRouter);
+app.use('/api/task-v2', authenticate, taskV2Router);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/notification', authenticate, notificationRouter);
+app.use('/api/file', authenticate, fileRouter);
 
 // Global error handler
 app.use(errorHandler);
@@ -85,6 +95,11 @@ io.on('connection', (socket) => {
     }
     console.log('Socket disconnected:', socket.id);
   });
+});
+
+const fileService = new FileService();
+cron.schedule('30 6 * * *', async () => {
+  await fileService.cleanupUnusedFiles();
 });
 
 async function startServer() {

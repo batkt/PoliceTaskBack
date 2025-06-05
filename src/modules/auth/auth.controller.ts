@@ -16,7 +16,6 @@ export class AuthController {
         ip: req.ip || '',
       };
 
-      console.log('Device Info:', deviceInfo);
       const result = await this.authService.login(workerId, password);
       res.send({
         code: 200,

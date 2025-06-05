@@ -1,4 +1,4 @@
-import { TaskModel } from '../task/task.model';
+import { TaskModel } from '../task-v2/task.model';
 
 export class DashboardService {
   getTaskStatusCounts = async () => {
@@ -18,7 +18,7 @@ export class DashboardService {
           overdueCount: [
             {
               $match: {
-                endDate: { $lt: today },
+                dueDate: { $lt: today },
                 status: { $ne: 'completed' },
               },
             },
