@@ -14,12 +14,19 @@ import { UserModel } from '../user/user.model';
 import { AuthUserType } from '../user/user.types';
 import { ITask, TaskModel } from './task.model';
 import { ICreateTaskInput, TaskStatus } from './task.types';
+import {
+  changeCountStatus,
+  increaseCountNewTask,
+} from '../../utils/redis.util';
+import { SocketService } from '../socket/socket.service';
 
 export class TaskService {
   private notificationService: NotificationService;
+  private socketService: SocketService;
 
   constructor() {
     this.notificationService = new NotificationService();
+    this.socketService = new SocketService();
   }
 
   async createTask(input: ICreateTaskInput, authUser: AuthUserType) {
@@ -27,11 +34,31 @@ export class TaskService {
     if (!user) {
       throw new AppError(404, 'CreateTask', 'Хэрэглэгч олдсонгүй');
     }
+    if (!(input?.assignees?.length > 0)) {
+      throw new AppError(400, 'CreateTask', 'Хариуцагч сонгоогүй байна.');
+    }
+
+    if (!(input.assignees.includes(user.id) || user.role !== 'user')) {
+      throw new AppError(
+        403,
+        'Register user',
+        'Та энэ үйлдлийг хийх эрхгүй байна.'
+      );
+    }
+
+    // startDate < now
+    let status = 'pending';
+    const startDate = new Date(input.startDate);
+    const now = new Date();
+    if (startDate < now) {
+      status = 'active';
+    }
+
     const task = await TaskModel.create({
       priority: input.priority || 'medium',
       ...input,
       createdBy: authUser.id,
-      status: 'pending',
+      status: status,
     });
 
     if (input.fileIds?.length) {
@@ -40,6 +67,9 @@ export class TaskService {
         { $set: { task: task._id } }
       );
     }
+
+    await increaseCountNewTask(status);
+    this.socketService.broadcastDashboardStats();
 
     const recipients = input.assignees.filter((id) => id !== authUser.id);
     for (const assigneeId of recipients) {
@@ -96,9 +126,19 @@ export class TaskService {
         'StartTask',
         'Та энэ даалгаварт хуваарилагдаагүй байна'
       );
+    if (![TaskStatus.PENDING, TaskStatus.ACTIVE].includes(task.status))
+      throw new AppError(
+        400,
+        'CompleteTask',
+        'Тус даалгаварыг эхлүүлэх боломжгүй төлөвт байна.'
+      );
 
-    task.status = TaskStatus.IN_PROGRESS;
+    const currentStatus = task.status;
+    const newStatus = TaskStatus.IN_PROGRESS;
+    task.status = newStatus;
     await task.save();
+    await changeCountStatus(currentStatus, newStatus);
+    this.socketService.broadcastDashboardStats();
 
     const recipients = [
       task.createdBy!.toString(),
@@ -132,9 +172,18 @@ export class TaskService {
         'Та энэ даалгаварт хуваарилагдаагүй байна'
       );
     if (task.status !== TaskStatus.IN_PROGRESS)
-      throw new AppError(400, 'CompleteTask', 'Буруу төлөвт байна.');
-    task.status = TaskStatus.COMPLETED;
+      throw new AppError(
+        400,
+        'CompleteTask',
+        'Тус даалгавар дуусгах боломжгүй төлөвт байна.'
+      );
+
+    const currentStatus = task.status;
+    const newStatus = TaskStatus.COMPLETED;
+    task.status = newStatus;
     await task.save();
+    await changeCountStatus(currentStatus, newStatus);
+    this.socketService.broadcastDashboardStats();
 
     const recipients = [
       task.createdBy!.toString(),
@@ -194,11 +243,16 @@ export class TaskService {
       );
     }
     const audit = await AuditModel.create({ ...input, checkedBy: authUser.id });
-    task.status =
+
+    const currentStatus = task.status;
+    const newStatus =
       input.result === AuditResult.APPROVED
         ? TaskStatus.REVIEWED
         : TaskStatus.IN_PROGRESS;
+    task.status = newStatus;
     await task.save();
+    await changeCountStatus(currentStatus, newStatus);
+    this.socketService.broadcastDashboardStats();
 
     const recipients =
       authUser.id === task.createdBy!.toString()

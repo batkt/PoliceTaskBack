@@ -18,7 +18,7 @@ export class NotificationService {
       taskId,
     });
     const newNotification = await notification.save();
-    this.socketService.sendNotificationToUser(
+    await this.socketService.sendNotificationToUser(
       userId,
       newNotification.toObject()
     );
@@ -34,7 +34,7 @@ export class NotificationService {
     }));
     await NotificationModel.insertMany(notifications);
     const userIds = payloads.map((p) => p.userId);
-    this.socketService.sendNotificationToUsers(userIds, notifications);
+    await this.socketService.sendNotificationToUsers(userIds, notifications);
   }
 
   async broadcastSystemNotification(

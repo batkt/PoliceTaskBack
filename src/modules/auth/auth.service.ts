@@ -1,16 +1,22 @@
 import { AppError } from '../../middleware/error.middleware';
 import { generateAccessToken } from '../../utils/jwt.util';
 import { comparePassword, hashPassword } from '../../utils/password.util';
+import { LoginHistoryService } from '../login-history/login-history.service';
 import { UserModel } from '../user/user.model';
 import { RegisterAdminType } from './auth.types';
 
 interface DeviceInfo {
   userAgent: string;
-  ip: string;
+  ipAddress: string;
 }
 
 export class AuthService {
-  async login(workerId: string, password: string) {
+  private loginHistoryService: LoginHistoryService;
+  constructor() {
+    this.loginHistoryService = new LoginHistoryService();
+  }
+
+  async login(workerId: string, password: string, deviceInfo: DeviceInfo) {
     // Find user
     const user = await UserModel.findOne({
       workerId: { $regex: `^${workerId}$`, $options: 'i' },
@@ -27,12 +33,25 @@ export class AuthService {
     // Verify password
     const validPassword = await comparePassword(password, user.password);
     if (!validPassword) {
+      await this.loginHistoryService.createLoginHistory({
+        userId: user.id,
+        ...deviceInfo,
+        success: false,
+        reason: 'Нууц үг буруу',
+      });
       throw new AppError(
         500,
         'Login error',
         'Ажилтны код эсвэл нууц үг буруу байна.'
       );
     }
+
+    // save login history
+    await this.loginHistoryService.createLoginHistory({
+      userId: user.id,
+      ...deviceInfo,
+      success: true,
+    });
 
     // Generate tokens
     const accessToken = generateAccessToken({

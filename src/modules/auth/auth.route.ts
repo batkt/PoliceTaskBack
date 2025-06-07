@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { validateRequestBody } from '../../middleware/validate.middleware';
 import { authSchema } from './auth.schema';
 import { AuthController } from './auth.controller';
+import { authenticate } from '../../middleware/auth.middleware';
 
 const router = Router();
 const authController = new AuthController();
@@ -17,6 +18,12 @@ router.post(
   '/register-super-admin',
   validateRequestBody(authSchema.registerSuperAdmin),
   authController.registerSuperAdmin
+);
+
+router.get(
+  '/login-history',
+  authenticate,
+  authController.getLoginHistoryByUser
 );
 
 export { router as authRouter };

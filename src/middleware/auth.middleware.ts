@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { AppError } from './error.middleware';
 import { verifyAccessToken } from '../utils/jwt.util';
 import { AuthUserType } from '../modules/user/user.types';
+import { ExtendedError, Socket } from 'socket.io';
 
 declare global {
   namespace Express {
@@ -39,5 +40,22 @@ export const authenticate = async (
     }
   } catch (error) {
     next(error);
+  }
+};
+
+export const socketAuthenticate = (
+  socket: Socket,
+  next: (err?: ExtendedError) => void
+) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error('No token'));
+
+  try {
+    const decoded = verifyAccessToken(token);
+
+    socket.data.userId = decoded.userId;
+    next();
+  } catch {
+    return next(new Error('Invalid token'));
   }
 };

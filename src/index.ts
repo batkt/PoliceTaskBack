@@ -16,13 +16,14 @@ import { userRouter } from './modules/user/user.route';
 import { branchRouter } from './modules/branch/branch.route';
 import { taskRouter } from './modules/task/task.route';
 import { dashboardRouter } from './modules/dashboard/dashboard.route';
-import { initSocket, io, onlineUsers } from './config/socket';
+import { initSocket } from './config/socket';
 import { authenticate } from './middleware/auth.middleware';
 import { notificationRouter } from './modules/notification/notification.route';
-import { NotificationService } from './modules/notification/notification.service';
 import { fileRouter } from './modules/file/file.route';
 import { taskV2Router } from './modules/task-v2/task.route';
 import { FileService } from './modules/file/file.service';
+import { getRedisClient } from './config/redis';
+import { clearStaleSocketsOnStartup } from './utils/redis.util';
 
 const app = express();
 
@@ -68,42 +69,31 @@ app.use(errorHandler);
 
 const server = http.createServer(app);
 
-// socket server register
-initSocket(server);
+const fileService = new FileService();
 
-const notificationService = new NotificationService();
-
-io.on('connection', (socket) => {
-  console.log('Socket connected:', socket.id);
-
-  socket.on('register', async (userId: string) => {
-    onlineUsers.set(userId, socket.id);
-    console.log(`User ${userId} registered with socket ${socket.id}`);
-
-    const list = await notificationService.getNotifications(userId);
-    const unseenCount = await notificationService.getUnseenCount(userId);
-    socket.emit('notifications', list);
-    socket.emit('unseenCount', unseenCount);
-  });
-
-  socket.on('disconnect', () => {
-    for (const [uid, sid] of onlineUsers.entries()) {
-      if (sid === socket.id) {
-        onlineUsers.delete(uid);
-        break;
-      }
-    }
-    console.log('Socket disconnected:', socket.id);
-  });
+cron.schedule('30 6 * * *', async () => {
+  try {
+    await fileService.cleanupUnusedFiles();
+  } catch (err) {
+    console.error('❌ Failed to clear unused files[cron]:', err);
+  }
 });
 
-const fileService = new FileService();
-cron.schedule('30 6 * * *', async () => {
-  await fileService.cleanupUnusedFiles();
+cron.schedule('0 4 * * 7', async () => {
+  try {
+    await clearStaleSocketsOnStartup();
+  } catch (err) {
+    console.error('❌ Failed to clear stale sockets [cron]:', err);
+  }
 });
 
 async function startServer() {
   await connectDB();
+  getRedisClient();
+  await clearStaleSocketsOnStartup();
+
+  // socket server register
+  initSocket(server);
 
   const PORT = process.env.PORT!;
   server.listen(PORT, () => {
