@@ -4,13 +4,19 @@ import {
   setStatsCount,
 } from '../../utils/redis.util';
 import { TaskModel } from '../task-v2/task.model';
+import { fromZonedTime } from 'date-fns-tz';
 
 export class DashboardService {
   getTaskStatusCounts = async () => {
     const isEmptyStats = await isEmptyStatsCountState();
     if (isEmptyStats) {
+      const timeZone = 'Asia/Ulaanbaatar';
       const now = new Date();
-      const today = new Date(now.toISOString().slice(0, 10));
+      // Өнөөдрийн YYYY-MM-DD string-ийг тухайн бүсээр гаргана
+      const localTodayString = now.toLocaleDateString('en-CA', { timeZone }); // '2025-06-08'
+
+      // Тухайн бүсийн 00:00 цагийг UTC рүү хөрвүүлнэ
+      const today = fromZonedTime(`${localTodayString}T00:00:00`, timeZone);
 
       const result = await TaskModel.aggregate([
         {
