@@ -35,7 +35,6 @@ export class SocketService {
 
     const viewerIds = await redis.smembers('dashboard_viewers');
 
-    console.log('wtf ', viewerIds);
     for (const userId of viewerIds) {
       const socketIds = await getSocketIdByUserId(userId);
       socketIds.forEach((socketId) => {

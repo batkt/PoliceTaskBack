@@ -26,4 +26,6 @@ router.get(
   authController.getLoginHistoryByUser
 );
 
+router.post('/change-password', authenticate, authController.changePassword);
+
 export { router as authRouter };

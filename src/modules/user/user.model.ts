@@ -36,4 +36,14 @@ const userSchema = new Schema<IUser>(
   }
 );
 
+userSchema.index({ branch: 1, joinedDate: -1 });
+
+userSchema.index({
+  surname: 'text',
+  givenname: 'text',
+  rank: 'text',
+  position: 'text',
+  workerId: 'text', // 🔥 нэмэгдлээ
+});
+
 export const UserModel = model<IUser>('User', userSchema);

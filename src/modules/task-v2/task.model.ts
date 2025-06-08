@@ -42,6 +42,16 @@ const TaskSchema = new Schema(
   { timestamps: true }
 );
 
+TaskSchema.index({ title: 'text' });
+
+// Sort fields
+TaskSchema.index({ startDate: -1 });
+TaskSchema.index({ dueDate: 1 });
+
+// (Optional) compound index-үүд
+TaskSchema.index({ assignees: 1, startDate: -1 });
+TaskSchema.index({ createdBy: 1, dueDate: 1 });
+
 TaskSchema.virtual('files', {
   ref: 'File',
   localField: '_id',

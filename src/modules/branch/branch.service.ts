@@ -1,6 +1,6 @@
 import { AppError } from '../../middleware/error.middleware';
 import { AuthUserType } from '../user/user.types';
-import { BranchModel } from './branch.model';
+import { BranchModel, IBranch } from './branch.model';
 import { CreateBranchType } from './branch.types';
 
 export class BranchService {
@@ -29,30 +29,26 @@ export class BranchService {
       );
     }
 
-    if (!parentId) {
-      // ParentId bhgui bol esteg salbar uusgeh
-      const newParentBranch = new BranchModel({
-        name,
-        isParent: true, // If no parent, it's a parent branch
-        createdBy: user.id,
-      });
+    let path = '';
+    let _parentId = null;
+    let isParent = true;
 
-      await newParentBranch.save();
-      return newParentBranch;
-    }
-
-    // ParentId-r salbar oldohgui bol
     if (parentId) {
-      const parentBranch = await BranchModel.findById(parentId).exec();
+      const parentBranch = await BranchModel.findById(parentId);
       if (!parentBranch) {
         throw new AppError(500, 'Branch create', `Дээд салбар олдсонгүй.`);
       }
+      isParent = false;
+      _parentId = parentId;
+      path = `${parentBranch.path}/${parentBranch._id}`;
     }
 
     // Create new branch
     const newBranch = new BranchModel({
       name,
-      parent: parentId,
+      isParent: _parentId === null,
+      parent: _parentId,
+      path,
       createdBy: user.id,
     });
 
@@ -60,4 +56,16 @@ export class BranchService {
     // Update parent branch to indicate it has children
     return newBranch;
   };
+
+  async getBranchWithChildren(id: string): Promise<IBranch[]> {
+    const branch = await BranchModel.findById(id);
+    if (!branch) throw new Error('Branch not found');
+
+    const pathPrefix = `${branch.path}/${branch._id}`;
+    return BranchModel.find({ path: { $regex: `^${pathPrefix}` } });
+  }
+
+  async getAll(): Promise<IBranch[]> {
+    return BranchModel.find();
+  }
 }

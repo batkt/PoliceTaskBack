@@ -15,4 +15,7 @@ router.post(
   branchController.createBranch
 );
 
+router.get('/', authenticate, branchController.getAll);
+router.get('/:id/children', authenticate, branchController.getChildren);
+
 export { router as branchRouter };

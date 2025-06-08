@@ -32,11 +32,16 @@ export class UserController {
       const sortDirection =
         (req.query.order as string) === 'asc' ? 'asc' : 'desc';
 
-      const givenname = req.query.givenname as string;
+      const search = req.query.search as string;
 
       let filters: FilterQuery<IUser> = {};
-      if (givenname) {
-        filters.givenname = { $regex: escapeRegex(givenname), $options: 'i' };
+      if (search) {
+        filters.$or = [
+          { surname: { $regex: escapeRegex(search), $options: 'i' } },
+          { givenname: { $regex: escapeRegex(search), $options: 'i' } },
+          { rank: { $regex: escapeRegex(search), $options: 'i' } },
+          { position: { $regex: escapeRegex(search), $options: 'i' } },
+        ];
       }
 
       const user = await this.userService.getList({

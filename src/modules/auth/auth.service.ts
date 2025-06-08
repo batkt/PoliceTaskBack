@@ -3,6 +3,7 @@ import { generateAccessToken } from '../../utils/jwt.util';
 import { comparePassword, hashPassword } from '../../utils/password.util';
 import { LoginHistoryService } from '../login-history/login-history.service';
 import { UserModel } from '../user/user.model';
+import { AuthUserType } from '../user/user.types';
 import { RegisterAdminType } from './auth.types';
 
 interface DeviceInfo {
@@ -95,5 +96,44 @@ export class AuthService {
 
     const { password, ...newUserData } = newUser.toObject();
     return newUserData;
+  };
+
+  changePassword = async (
+    authUser: AuthUserType,
+    data: {
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    }
+  ) => {
+    const { currentPassword, newPassword, confirmPassword } = data;
+    if (newPassword !== confirmPassword) {
+      throw new AppError(
+        400,
+        'Change password',
+        'Баталгаажуулах нууц үг шинэ нууц үгтэй тохирохгүй байна'
+      );
+    }
+    const user = await UserModel.findById(authUser.id);
+
+    if (!user) {
+      throw new AppError(500, 'Change password', 'Хэрэглэгч олдсонгүй.');
+    }
+    const validPassword = await comparePassword(currentPassword, user.password);
+
+    if (!validPassword) {
+      throw new AppError(
+        400,
+        'Change password',
+        'Одоогийн нууц үг буруу байна'
+      );
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    user.password = hashedPassword;
+
+    await user.save();
+    return true;
   };
 }

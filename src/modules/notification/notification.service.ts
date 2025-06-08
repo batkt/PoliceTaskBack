@@ -1,6 +1,7 @@
-import { NotificationModel } from './notification.model';
+import { INotification, NotificationModel } from './notification.model';
 import { NotificationPayload } from './notification.types';
 import { SocketService } from '../socket/socket.service';
+import { FilterQuery } from 'mongoose';
 
 export class NotificationService {
   private socketService: SocketService;
@@ -55,7 +56,7 @@ export class NotificationService {
     filter: 'all' | 'unread' = 'all'
   ) {
     const skip = (page - 1) * pageSize;
-    const query: any = { userId };
+    const query: FilterQuery<INotification> = { userId };
 
     if (filter === 'unread') {
       query.read = false;

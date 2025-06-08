@@ -38,11 +38,6 @@ export function initSocket(server: any): void {
       await redis.sadd(DASHBOARD_VIEWERS_KEY, userId);
     });
 
-    socket.on('dashboard:subscribe', async () => {
-      const userId = socket.data.userId;
-      await redis.sadd(DASHBOARD_VIEWERS_KEY, userId);
-    });
-
     socket.on('dashboard:unsubscribe', async () => {
       const userId = socket.data.userId;
       await redis.srem(DASHBOARD_VIEWERS_KEY, userId);
@@ -56,12 +51,8 @@ export function initSocket(server: any): void {
 
     const notificationService = new NotificationService();
     const socketService = new SocketService();
-    const [notifications, notSeenCount] = await Promise.all([
-      notificationService.getNotifications(userId),
-      notificationService.getUnseenCount(userId),
-    ]);
+    const notSeenCount = await notificationService.getUnseenCount(userId);
 
-    socket.emit('notifications', notifications);
     socket.emit('notSeenCount', notSeenCount);
     await socketService.broadcastDashboardStats();
   });

@@ -97,10 +97,26 @@ async function startServer() {
 
   const PORT = process.env.PORT!;
   server.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log(
+      `🚀 Server is running on http://localhost:${PORT}`,
+      dateFormat()
+    );
   });
 }
 
 startServer().catch((err) => {
   console.error('🔥 Failed to start server', err);
 });
+
+const dateFormat = () => {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+
+  const hoursString = hours.toString().padStart(2, '0');
+  const minutesString = minutes.toString().padStart(2, '0');
+  const secondsString = seconds.toString().padStart(2, '0');
+
+  return [hoursString, minutesString, secondsString].join(':');
+};

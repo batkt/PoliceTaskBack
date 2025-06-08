@@ -14,4 +14,10 @@ export const authSchema = {
     position: z.string(),
     rank: z.string(),
   }),
+
+  changePassword: z.object({
+    currentPassword: z.string(),
+    newPassword: z.string().min(8),
+    confirmPassword: z.string().min(8),
+  }),
 };

@@ -51,6 +51,19 @@ export class AuthController {
     }
   };
 
+  changePassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user!;
+      const result = await this.authService.changePassword(user, req.body);
+      res.status(200).json({
+        code: 200,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getLoginHistoryByUser = async (req: Request, res: Response) => {
     try {
       const userId = req.user!.id;
