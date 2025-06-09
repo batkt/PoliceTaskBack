@@ -11,6 +11,8 @@ export interface IUser extends Document {
   role: 'user' | 'super-admin' | 'admin';
   joinedDate?: Date; //
   // profile zurag talbar
+  profileImageUrl?: string;
+  profileImage?: Types.ObjectId;
   createdBy?: Types.ObjectId; // Хэн үүсгэсэн
 }
 
@@ -23,6 +25,8 @@ const userSchema = new Schema<IUser>(
     rank: { type: String, required: true },
     branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
     password: { type: String, required: true },
+    profileImageUrl: { type: String },
+    profileImage: { type: Schema.Types.ObjectId, ref: 'File' },
     role: {
       type: String,
       enum: ['user', 'admin', 'super-admin'],

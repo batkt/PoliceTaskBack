@@ -27,5 +27,10 @@ router.get(
 );
 
 router.post('/change-password', authenticate, authController.changePassword);
+router.post(
+  '/change-profile-image',
+  authenticate,
+  authController.changeProfileImage
+);
 
 export { router as authRouter };

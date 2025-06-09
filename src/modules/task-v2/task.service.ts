@@ -64,7 +64,7 @@ export class TaskService {
     if (input.fileIds?.length) {
       await FileModel.updateMany(
         { _id: { $in: input.fileIds } },
-        { $set: { task: task._id } }
+        { $set: { task: task._id, isActive: true } }
       );
     }
 
@@ -88,7 +88,7 @@ export class TaskService {
   async addFileToTask(taskId: string, fileId: string) {
     const file = await FileModel.findByIdAndUpdate(
       fileId,
-      { $set: { task: taskId } },
+      { $set: { task: taskId, isActive: true } },
       { new: true }
     );
 

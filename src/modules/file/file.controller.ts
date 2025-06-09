@@ -20,7 +20,8 @@ export class FileController {
       const result = await this.fileService.handleUpload(
         authUser,
         req.file,
-        req.body.duration
+        req.body.duration,
+        req.body.usageType
       );
 
       res.status(201).json({

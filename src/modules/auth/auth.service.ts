@@ -1,6 +1,8 @@
+import { Types } from 'mongoose';
 import { AppError } from '../../middleware/error.middleware';
 import { generateAccessToken } from '../../utils/jwt.util';
 import { comparePassword, hashPassword } from '../../utils/password.util';
+import { FileModel } from '../file/file.model';
 import { LoginHistoryService } from '../login-history/login-history.service';
 import { UserModel } from '../user/user.model';
 import { AuthUserType } from '../user/user.types';
@@ -135,5 +137,39 @@ export class AuthService {
 
     await user.save();
     return true;
+  };
+
+  changeProfileImage = async (
+    authUser: AuthUserType,
+    data: { fileId: string; imageUrl: string }
+  ) => {
+    const { fileId, imageUrl } = data;
+    const user = await UserModel.findById(authUser.id);
+
+    if (!user) {
+      throw new AppError(500, 'Change avatar', 'Хэрэглэгч олдсонгүй.');
+    }
+
+    if (user.profileImage) {
+      const currentProfileImage = await FileModel.findById(user.profileImage);
+
+      if (currentProfileImage) {
+        currentProfileImage.isActive = false;
+        await currentProfileImage.save();
+      }
+    }
+
+    user.profileImage = new Types.ObjectId(fileId);
+    user.profileImageUrl = imageUrl;
+    await user.save();
+
+    const userObj = user.toJSON() as { [key: string]: any };
+    delete userObj.password;
+    delete userObj.__v;
+
+    await FileModel.findByIdAndUpdate(fileId, {
+      isActive: true,
+    });
+    return userObj;
   };
 }

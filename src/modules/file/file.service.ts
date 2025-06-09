@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { FileModel } from './file.model';
 import { AuthUserType } from '../user/user.types';
+import { FileUsageType } from './file.types';
 
 export class FileService {
   public generateFileUrl(filename: string): string {
@@ -12,7 +13,8 @@ export class FileService {
   handleUpload = async (
     user: AuthUserType,
     file: Express.Multer.File,
-    duration?: number
+    duration?: number,
+    usageType?: FileUsageType
   ) => {
     const url = this.generateFileUrl(file.filename);
 
@@ -22,13 +24,12 @@ export class FileService {
       url,
       duration,
       mimetype: file.mimetype,
+      usageType,
       size: file.size,
       uploadedBy: user.id, // хэрвээ authentication байгаа бол
     });
 
-    const result = await FileModel.findById(uploadedFile.id)
-      .populate('uploadedBy')
-      .lean();
+    const result = await FileModel.findById(uploadedFile.id).lean();
     return result;
   };
 
@@ -44,19 +45,15 @@ export class FileService {
   }
 
   async cleanupUnusedFiles() {
-    console.log(
-      '🧹 Cron ажиллаа: task-д холбогдоогүй файлуудыг цэвэрлэж байна...'
-    );
+    console.log('🧹 Cron ажиллаа: Ашиглаагүй файлуудыг цэвэрлэж байна...');
 
     try {
-      const unlinkedFiles = await FileModel.find({ task: null });
-      let successDeletedCount = 0;
+      const unlinkedFiles = await FileModel.find({ isActive: false });
       for (const file of unlinkedFiles) {
         const filePath = path.join(__dirname, '../../uploads', file.filename);
 
         try {
           await fs.unlink(filePath);
-          successDeletedCount++;
         } catch (err) {}
 
         await FileModel.findByIdAndDelete(file._id);
