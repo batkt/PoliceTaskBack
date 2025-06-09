@@ -11,7 +11,7 @@ import { INoteInput } from '../note/note.types';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/notification.types';
 import { UserModel } from '../user/user.model';
-import { AuthUserType } from '../user/user.types';
+import { AuthUserType, UserRole } from '../user/user.types';
 import { ITask, TaskModel } from './task.model';
 import { ICreateTaskInput, TaskStatus } from './task.types';
 import {
@@ -19,6 +19,7 @@ import {
   increaseCountNewTask,
 } from '../../utils/redis.util';
 import { SocketService } from '../socket/socket.service';
+import { BranchService } from '../branch/branch.service';
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -38,7 +39,9 @@ export class TaskService {
       throw new AppError(400, 'CreateTask', 'Хариуцагч сонгоогүй байна.');
     }
 
-    if (!(input.assignees.includes(user.id) || user.role !== 'user')) {
+    if (
+      !(input.assignees.some((aId) => aId === user.id) || user.role !== 'user')
+    ) {
       throw new AppError(
         403,
         'Register user',
@@ -85,29 +88,45 @@ export class TaskService {
     return task;
   }
 
-  async addFileToTask(taskId: string, fileId: string) {
+  async addFileToTask(user: AuthUserType, taskId: string, fileId: string) {
+    const task = await TaskModel.findById(taskId);
+
+    if (!task) {
+      throw new AppError(404, 'Add file to task', 'Даалгавар олдсонгүй');
+    }
+
+    if (
+      !(
+        task.assignees.some((aId) => aId.toString() === user.id) ||
+        user.role !== 'user'
+      )
+    ) {
+      throw new AppError(
+        403,
+        'Add file to task',
+        'Та энэ үйлдлийг хийх эрхгүй байна.'
+      );
+    }
+
     const file = await FileModel.findByIdAndUpdate(
       fileId,
       { $set: { task: taskId } },
       { new: true }
     );
 
-    const task = await TaskModel.findById(taskId);
-    if (task) {
-      const recipients = [
-        task.createdBy!.toString(),
-        ...task.assignees.map((id) => id.toString()),
-      ].filter((id) => id !== file?.uploadedBy?.toString());
+    const recipients = [
+      task.createdBy!.toString(),
+      ...task.assignees.map((id) => id.toString()),
+    ].filter((id) => id !== file?.uploadedBy?.toString());
 
-      for (const userId of recipients) {
-        await this.notificationService.createNotification({
-          title: 'Файл нэмэгдлээ',
-          type: NotificationType.TASK,
-          message: `"${task.title}" даалгаварт файл хавсаргасан`,
-          userId,
-          taskId: task.id,
-        });
-      }
+    for (const userId of recipients) {
+      await this.notificationService.createNotification({
+        title: 'Файл нэмэгдлээ',
+        type: NotificationType.TASK,
+        message: `"${task.title}" даалгаварт файл хавсаргасан`,
+        userId,
+        taskId: task.id,
+      });
     }
 
     return file;
@@ -206,6 +225,16 @@ export class TaskService {
   async addNote(input: INoteInput, authUser: AuthUserType) {
     const task = await TaskModel.findById(input.taskId);
     if (!task) throw new AppError(404, 'AddNote', 'Даалгавар олдсонгүй');
+
+    if (
+      !(
+        task.assignees.some((aId) => aId.toString() === authUser.id) ||
+        authUser.role !== 'user'
+      )
+    ) {
+      throw new AppError(403, 'AddNote', 'Та энэ үйлдлийг хийх эрхгүй байна.');
+    }
+
     if ([TaskStatus.COMPLETED, TaskStatus.REVIEWED].includes(task.status)) {
       throw new AppError(
         400,
@@ -242,6 +271,19 @@ export class TaskService {
         'Даалгавар дууссан төлөвтэй байх ёстой'
       );
     }
+
+    if (
+      ![UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(
+        authUser.role as UserRole
+      )
+    ) {
+      throw new AppError(
+        403,
+        'AuditTask',
+        'Та энэ үйлдлийг хийх эрхгүй байна.'
+      );
+    }
+
     const audit = await AuditModel.create({ ...input, checkedBy: authUser.id });
 
     const currentStatus = task.status;
@@ -286,6 +328,18 @@ export class TaskService {
         'Даалгавар хянагдсан төлөвтэй байх ёстой'
       );
     }
+
+    if (
+      ![UserRole.ADMIN, UserRole.SUPER_ADMIN].includes(
+        authUser.role as UserRole
+      )
+    ) {
+      throw new AppError(
+        403,
+        'AuditTask',
+        'Та энэ үйлдлийг хийх эрхгүй байна.'
+      );
+    }
     const evaluation = await EvaluationModel.create({
       ...input,
       evaluator: authUser.id,
@@ -310,10 +364,20 @@ export class TaskService {
     sortBy = 'createdAt',
     sortDirection = 'desc',
     filters = {},
+    me,
+    authUser,
   }: Pagination & {
     filters?: FilterQuery<ITask>;
+    me?: string;
+    authUser: AuthUserType;
   }) => {
     const skip = (page - 1) * pageSize;
+
+    if (me === 'true') {
+      filters.assignees = {
+        $in: authUser.id,
+      };
+    }
 
     const tasks = await TaskModel.find(filters)
       .select('-__v -createdAt -updatedAt')

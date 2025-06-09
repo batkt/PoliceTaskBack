@@ -24,8 +24,13 @@ export class TaskController {
 
   async addFileToTask(req: Request, res: Response, next: NextFunction) {
     try {
+      const authUser = req.user!;
       const { taskId, fileId } = req.body;
-      const file = await this.taskService.addFileToTask(taskId, fileId);
+      const file = await this.taskService.addFileToTask(
+        authUser,
+        taskId,
+        fileId
+      );
       this.handleSuccess(res, file);
     } catch (error) {
       next(error);
@@ -127,18 +132,14 @@ export class TaskController {
         filters.title = { $regex: escapeRegex(title), $options: 'i' };
       }
 
-      if (me === 'true') {
-        filters.assignees = {
-          $in: authUser.id,
-        };
-      }
-
       const tasks = await this.taskService.getList({
         page,
         pageSize,
         sortBy: sort,
         sortDirection: order,
         filters,
+        me,
+        authUser,
       });
 
       res.status(200).json({

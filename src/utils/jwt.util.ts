@@ -2,7 +2,8 @@ import jwt from 'jsonwebtoken';
 
 type Payload = {
   userId: string;
-  role?: string;
+  role: string;
+  branchId: string;
 };
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET!;

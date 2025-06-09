@@ -32,7 +32,11 @@ export const authenticate = async (
 
     try {
       const decoded = verifyAccessToken(token);
-      req.user = { id: decoded.userId, role: decoded?.role }; // Assuming userId and role are in the token payload
+      req.user = {
+        id: decoded.userId,
+        role: decoded?.role,
+        branchId: decoded.branchId,
+      }; // Assuming userId and role are in the token payload
       next();
     } catch (error) {
       console.log(error);

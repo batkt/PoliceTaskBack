@@ -58,6 +58,7 @@ export class AuthService {
     const accessToken = generateAccessToken({
       userId: user._id!.toString(),
       role: user.role,
+      branchId: user.branch!.toString(),
     });
 
     const { password: uPass, ...userWithoutPassword } = user.toObject();
