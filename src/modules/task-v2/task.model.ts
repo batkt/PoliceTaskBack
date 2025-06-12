@@ -1,34 +1,46 @@
-import mongoose, { Document, Schema, Types } from 'mongoose';
-import { TaskStatus, TaskPriority } from './task.types';
+import { Document, model, Schema, Types } from 'mongoose';
+import { TaskStatus, TaskPriority, IFieldEntry } from './task.types';
 
 export interface ITask extends Document {
-  assignees: Types.ObjectId[];
+  assignee: Types.ObjectId;
   title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  branchId: Types.ObjectId;
+  formTemplateId: Types.ObjectId;
+  type: string;
   description?: string;
   startDate?: Date; //
   dueDate?: Date; //
   completedDate?: Date;
-  status: TaskStatus;
-  priority: TaskPriority;
-  // profile zurag talbar
-  createdBy?: Types.ObjectId; // Хэн үүсгэсэн
+  createdBy: Types.ObjectId; // Хэн үүсгэсэн
 }
 
-const TaskSchema = new Schema(
+const TaskSchema = new Schema<ITask>(
   {
     title: { type: String, required: true },
     description: String,
+    formTemplateId: {
+      type: Schema.Types.ObjectId,
+      ref: 'FormTemplate',
+      required: true,
+    },
+    branchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Branch',
+      required: true,
+    },
     priority: {
       type: String,
       enum: Object.values(TaskPriority),
-      default: 'medium',
+      default: TaskPriority.MEDIUM,
     },
     status: {
       type: String,
       enum: Object.values(TaskStatus),
-      default: 'pending',
+      default: TaskStatus.PENDING,
     },
-    assignees: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
+    assignee: { type: Schema.Types.ObjectId, ref: 'User' },
     startDate: { type: Date, required: true },
     dueDate: Date,
     completedDate: Date,
@@ -36,7 +48,6 @@ const TaskSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
   },
   { timestamps: true }
@@ -44,13 +55,32 @@ const TaskSchema = new Schema(
 
 TaskSchema.index({ title: 'text' });
 
-// Sort fields
-TaskSchema.index({ startDate: -1 });
-TaskSchema.index({ dueDate: 1 });
+// Index
+TaskSchema.index({
+  assignee: 1,
+  status: 1,
+  dueDate: 1,
+});
 
-// (Optional) compound index-үүд
-TaskSchema.index({ assignees: 1, startDate: -1 });
-TaskSchema.index({ createdBy: 1, dueDate: 1 });
+TaskSchema.index({
+  assignee: 1,
+  status: 1,
+  startDate: 1,
+});
+
+TaskSchema.index({
+  branch: 1,
+  formTemplateId: 1,
+  status: 1,
+  startDate: -1,
+});
+
+TaskSchema.index({
+  branch: 1,
+  formTemplateId: 1,
+  status: 1,
+  dueDate: -1,
+});
 
 TaskSchema.virtual('files', {
   ref: 'File',
@@ -67,4 +97,31 @@ TaskSchema.virtual('evaluations', {
 // virtual-уудыг JSON-д оруулах тохиргоо
 TaskSchema.set('toObject', { virtuals: true });
 TaskSchema.set('toJSON', { virtuals: true });
-export const TaskModel = mongoose.model<ITask>('Task', TaskSchema);
+export const TaskModel = model<ITask>('Task', TaskSchema);
+
+export interface ITaskFormData extends Document {
+  taskId: Types.ObjectId;
+  formTemplateId: Types.ObjectId;
+  fields: IFieldEntry[];
+}
+
+const TaskFormDataSchema = new Schema<ITaskFormData>(
+  {
+    taskId: { type: Schema.Types.ObjectId, ref: 'Task', required: true },
+    formTemplateId: {
+      type: Schema.Types.ObjectId,
+      ref: 'FormTemplate',
+      required: true,
+    },
+    fields: [{ key: String, value: Schema.Types.Mixed }],
+  },
+  { timestamps: true }
+);
+
+TaskFormDataSchema.index({ 'fields.key': 1, 'fields.value': 1 });
+TaskFormDataSchema.index({ taskId: 1 });
+
+export const TaskFormDataModel = model<ITaskFormData>(
+  'TaskFormData',
+  TaskFormDataSchema
+);

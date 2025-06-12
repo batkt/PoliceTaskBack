@@ -61,8 +61,7 @@ export class BranchService {
     const branch = await BranchModel.findById(id);
     if (!branch) throw new Error('Branch not found');
 
-    const pathPrefix = `${branch.path}/${branch._id}`;
-    return BranchModel.find({ path: { $regex: `^${pathPrefix}` } });
+    return BranchModel.find({ path: { $regex: `^${branch.path}` } });
   }
 
   async getAll(): Promise<IBranch[]> {

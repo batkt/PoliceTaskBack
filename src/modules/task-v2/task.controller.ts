@@ -14,8 +14,12 @@ export class TaskController {
   async createTask(req: Request, res: Response, next: NextFunction) {
     try {
       const authUser = req.user!;
-      const input = req.body;
-      const task = await this.taskService.createTask(input, authUser);
+      const { formValues, ...input } = req.body;
+      const task = await this.taskService.createTaskWithForm(
+        input,
+        formValues,
+        authUser
+      );
       this.handleSuccess(res, task);
     } catch (error) {
       next(error);
@@ -128,18 +132,71 @@ export class TaskController {
       }
 
       if (me === 'true') {
-        filters.assignees = {
-          $in: authUser.id,
-        };
+        filters.assignee = authUser.id;
       }
 
-      const tasks = await this.taskService.getList({
-        page,
-        pageSize,
-        sortBy: sort,
-        sortDirection: order,
-        filters,
+      const tasks = await this.taskService.getList(
+        {
+          page,
+          pageSize,
+          sortBy: sort,
+          sortDirection: order,
+          filters,
+        },
+        authUser.branchId
+      );
+
+      res.status(200).json({
+        code: 200,
+        data: tasks,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getTasksWithFormSearch = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const authUser = req.user!;
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const sort = (req.query.sort as string) || 'createdAt';
+      const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+      const formTemplateId = req.query.formTemplateId as string;
+      // const status = req.query.status as string;
+      const search = req.query.search as string;
+      const me = req.query.onlyMe as string;
+
+      // let filters: FilterQuery<ITask> = {};
+      // if (status && status !== 'all') {
+      //   filters.status = status;
+      // }
+
+      // if (title) {
+      //   filters.title = { $regex: escapeRegex(title), $options: 'i' };
+      // }
+
+      // if (me === 'true') {
+      //   filters.assignees = {
+      //     $in: authUser.id,
+      //   };
+      // }
+
+      const tasks = await this.taskService.getTasksWithFormSearch(
+        authUser,
+        formTemplateId,
+        {
+          page,
+          pageSize,
+          sortBy: sort,
+          sortDirection: order,
+        },
+        { search, me }
+      );
 
       res.status(200).json({
         code: 200,

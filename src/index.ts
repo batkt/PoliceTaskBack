@@ -24,6 +24,7 @@ import { taskV2Router } from './modules/task-v2/task.route';
 import { FileService } from './modules/file/file.service';
 import { getRedisClient } from './config/redis';
 import { clearStaleSocketsOnStartup } from './utils/redis.util';
+import { formRouter } from './modules/form/form.route';
 
 const app = express();
 
@@ -63,6 +64,7 @@ app.use('/api/task-v2', authenticate, taskV2Router);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/notification', authenticate, notificationRouter);
 app.use('/api/file', authenticate, fileRouter);
+app.use('/api/form', authenticate, formRouter);
 
 // Global error handler
 app.use(errorHandler);

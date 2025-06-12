@@ -26,7 +26,7 @@ const FileSchema = new Schema({
     default: FileUsageType.ATTACHMENT,
   },
   isActive: { type: Boolean, required: true, default: false },
-  uploadedBy: { type: Schema.Types.ObjectId, ref: 'User' }, // optional
+  uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // optional
   task: { type: Schema.Types.ObjectId, ref: 'Task' },
 });
 

@@ -23,8 +23,9 @@ export class BranchController {
 
   getChildren = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authUser = req.user!;
       const branches = await this.branchService.getBranchWithChildren(
-        req.params.id
+        authUser.branchId
       );
       res.send({
         code: 200,

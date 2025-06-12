@@ -4,7 +4,7 @@ export interface IUser extends Document {
   workerId: string;
   surname: string;
   givenname: string;
-  branch?: Types.ObjectId; // Branch object or its ID
+  branch: Types.ObjectId; // Branch object or its ID
   rank: string;
   position: string;
   password: string;
@@ -23,7 +23,7 @@ const userSchema = new Schema<IUser>(
     givenname: { type: String, required: true },
     position: { type: String, required: true },
     rank: { type: String, required: true },
-    branch: { type: Schema.Types.ObjectId, ref: 'Branch' },
+    branch: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },
     password: { type: String, required: true },
     profileImageUrl: { type: String },
     profileImage: { type: Schema.Types.ObjectId, ref: 'File' },
@@ -47,7 +47,7 @@ userSchema.index({
   givenname: 'text',
   rank: 'text',
   position: 'text',
-  workerId: 'text', // 🔥 нэмэгдлээ
+  workerId: 'text',
 });
 
 export const UserModel = model<IUser>('User', userSchema);

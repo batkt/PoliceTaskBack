@@ -1,4 +1,4 @@
-import { FilterQuery } from 'mongoose';
+import { FilterQuery, ProjectionFields, startSession, Types } from 'mongoose';
 import { AppError } from '../../middleware/error.middleware';
 import { Pagination } from '../../types/pagination';
 import { AuditModel } from '../audit/audit.model';
@@ -10,15 +10,18 @@ import { NoteModel } from '../note/note.model';
 import { INoteInput } from '../note/note.types';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/notification.types';
-import { UserModel } from '../user/user.model';
+import { IUser, UserModel } from '../user/user.model';
 import { AuthUserType } from '../user/user.types';
-import { ITask, TaskModel } from './task.model';
+import { ITask, TaskFormDataModel, TaskModel } from './task.model';
 import { ICreateTaskInput, TaskStatus } from './task.types';
 import {
   changeCountStatus,
   increaseCountNewTask,
 } from '../../utils/redis.util';
 import { SocketService } from '../socket/socket.service';
+import { FormTemplateModel } from '../form/form.model';
+import { FieldTypes } from '../form/form.types';
+import { BranchService } from '../branch/branch.service';
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -29,16 +32,12 @@ export class TaskService {
     this.socketService = new SocketService();
   }
 
-  async createTask(input: ICreateTaskInput, authUser: AuthUserType) {
-    const user = await UserModel.findById(authUser.id);
-    if (!user) {
-      throw new AppError(404, 'CreateTask', 'Хэрэглэгч олдсонгүй');
-    }
-    if (!(input?.assignees?.length > 0)) {
+  async createTask(input: ICreateTaskInput, user: IUser): Promise<ITask> {
+    if (!input?.assignee) {
       throw new AppError(400, 'CreateTask', 'Хариуцагч сонгоогүй байна.');
     }
 
-    if (!(input.assignees.includes(user.id) || user.role !== 'user')) {
+    if (input.assignee !== user.id && user.role === 'user') {
       throw new AppError(
         403,
         'Register user',
@@ -57,7 +56,7 @@ export class TaskService {
     const task = await TaskModel.create({
       priority: input.priority || 'medium',
       ...input,
-      createdBy: authUser.id,
+      createdBy: user.id,
       status: status,
     });
 
@@ -68,46 +67,91 @@ export class TaskService {
       );
     }
 
-    await increaseCountNewTask(status);
-    this.socketService.broadcastDashboardStats();
-
-    const recipients = input.assignees.filter((id) => id !== authUser.id);
-    for (const assigneeId of recipients) {
-      await this.notificationService.createNotification({
-        title: 'Шинэ даалгавар',
-        type: NotificationType.TASK,
-        message: `${user?.rank} ${user.givenname} танд "${task.title}" даалгаврыг хуваариллаа.`,
-        userId: assigneeId,
-        taskId: task.id,
-      });
-    }
-
     return task;
   }
 
-  async addFileToTask(taskId: string, fileId: string) {
-    const file = await FileModel.findByIdAndUpdate(
-      fileId,
-      { $set: { task: taskId, isActive: true } },
-      { new: true }
-    );
+  createTaskWithForm = async (
+    taskInput: ICreateTaskInput,
+    formValues: Record<string, any>,
+    authUser: AuthUserType
+  ) => {
+    const session = await startSession();
+    session.startTransaction();
 
-    const task = await TaskModel.findById(taskId);
-    if (task) {
-      const recipients = [
-        task.createdBy!.toString(),
-        ...task.assignees.map((id) => id.toString()),
-      ].filter((id) => id !== file?.uploadedBy?.toString());
+    try {
+      const user = await UserModel.findById(authUser.id);
+      if (!user) {
+        throw new AppError(404, 'CreateTask', 'Хэрэглэгч олдсонгүй');
+      }
 
-      for (const userId of recipients) {
+      const { formTemplateId, assignee } = taskInput;
+      const task = await this.createTask(taskInput, user);
+
+      const fields = Object.entries(formValues).map(([key, value]) => ({
+        key,
+        value,
+      }));
+
+      await TaskFormDataModel.create({
+        taskId: task.id,
+        formTemplateId,
+        fields,
+      });
+
+      await session.commitTransaction();
+
+      await increaseCountNewTask(task.status);
+      this.socketService.broadcastDashboardStats();
+
+      if (assignee !== authUser.id) {
         await this.notificationService.createNotification({
-          title: 'Файл нэмэгдлээ',
+          title: 'Шинэ даалгавар',
           type: NotificationType.TASK,
-          message: `"${task.title}" даалгаварт файл хавсаргасан`,
-          userId,
+          message: `${user?.rank} ${user.givenname} танд "${task.title}" даалгаврыг хуваариллаа.`,
+          userId: assignee,
           taskId: task.id,
         });
       }
+
+      return task;
+    } catch (err) {
+      await session.abortTransaction();
+      throw err;
+    } finally {
+      session.endSession();
+    }
+  };
+
+  async addFileToTask(taskId: string, fileId: string) {
+    const file = await FileModel.findById(fileId);
+
+    if (!file) {
+      throw new AppError(404, 'Add File To Task', 'Файл олдсонгүй');
+    }
+
+    file.task = new Types.ObjectId(taskId);
+    file.isActive = true;
+
+    await file.save();
+
+    const task = await TaskModel.findById(taskId);
+    if (!task) {
+      throw new AppError(404, 'Add File To Task', 'Даалгавар олдсонгүй');
+    }
+
+    const recipients = [
+      task.createdBy.toString(),
+      task.assignee.toString(),
+    ].filter((id) => id !== file.uploadedBy.toString());
+
+    for (const userId of recipients) {
+      await this.notificationService.createNotification({
+        title: 'Файл нэмэгдлээ',
+        type: NotificationType.TASK,
+        message: `"${task.title}" даалгаварт файл хавсаргасан`,
+        userId,
+        taskId: task.id,
+      });
     }
 
     return file;
@@ -120,7 +164,7 @@ export class TaskService {
     }
     const task = await TaskModel.findById(taskId);
     if (!task) throw new AppError(404, 'StartTask', 'Даалгавар олдсонгүй');
-    if (!task.assignees.includes(user.id))
+    if (task.assignee !== user.id)
       throw new AppError(
         403,
         'StartTask',
@@ -141,8 +185,8 @@ export class TaskService {
     this.socketService.broadcastDashboardStats();
 
     const recipients = [
-      task.createdBy!.toString(),
-      ...task.assignees.map((id) => id.toString()),
+      task.createdBy.toString(),
+      task.assignee.toString(),
     ].filter((id) => id !== user.id);
 
     for (const userId of recipients) {
@@ -165,7 +209,7 @@ export class TaskService {
     }
     const task = await TaskModel.findById(taskId);
     if (!task) throw new AppError(404, 'CompleteTask', 'Даалгавар олдсонгүй');
-    if (!task.assignees.includes(user.id))
+    if (task.assignee !== user.id)
       throw new AppError(
         403,
         'CompleteTask',
@@ -186,8 +230,8 @@ export class TaskService {
     this.socketService.broadcastDashboardStats();
 
     const recipients = [
-      task.createdBy!.toString(),
-      ...task.assignees.map((id) => id.toString()),
+      task.createdBy.toString(),
+      task.assignee.toString(),
     ].filter((id) => id !== authUser.id);
 
     for (const userId of recipients) {
@@ -216,8 +260,8 @@ export class TaskService {
     const note = await NoteModel.create(input);
 
     const recipients = [
-      task.createdBy!.toString(),
-      ...task.assignees.map((id) => id.toString()),
+      task.createdBy.toString(),
+      task.assignee.toString(),
     ].filter((id) => id !== authUser.id);
 
     for (const userId of recipients) {
@@ -254,15 +298,12 @@ export class TaskService {
     await changeCountStatus(currentStatus, newStatus);
     this.socketService.broadcastDashboardStats();
 
-    const recipients =
-      authUser.id === task.createdBy!.toString()
-        ? task.assignees.map((id) => id.toString())
-        : [
-            task.createdBy!.toString(),
-            ...task.assignees.map((id) => id.toString()),
-          ];
+    const recipients = [
+      task.createdBy.toString(),
+      task.assignee.toString(),
+    ].filter((id) => id !== authUser.id);
 
-    for (const userId of recipients.filter((id) => id !== authUser.id)) {
+    for (const userId of recipients) {
       await this.notificationService.createNotification({
         title: 'Даалгавар хянагдсан',
         type: NotificationType.TASK,
@@ -291,7 +332,12 @@ export class TaskService {
       evaluator: authUser.id,
     });
 
-    for (const userId of task.assignees) {
+    const recipients = [
+      task.createdBy.toString(),
+      task.assignee.toString(),
+    ].filter((id) => id !== authUser.id);
+
+    for (const userId of recipients) {
       await this.notificationService.createNotification({
         title: 'Даалгавар үнэлэгдсэн',
         type: NotificationType.TASK,
@@ -304,21 +350,48 @@ export class TaskService {
     return evaluation;
   }
 
-  getList = async ({
-    page = 1,
-    pageSize = 10,
-    sortBy = 'createdAt',
-    sortDirection = 'desc',
-    filters = {},
-  }: Pagination & {
-    filters?: FilterQuery<ITask>;
-  }) => {
+  getList = async (
+    {
+      page = 1,
+      pageSize = 10,
+      sortBy = 'createdAt',
+      sortDirection = 'desc',
+      filters = {},
+    }: Pagination & {
+      filters?: FilterQuery<ITask>;
+    },
+    branchId: string
+  ) => {
     const skip = (page - 1) * pageSize;
+    if (branchId) {
+      const branchService = new BranchService();
+      const branches = await branchService.getBranchWithChildren(branchId);
+
+      filters.branchId = {
+        $in: branches?.map((b) => b._id) || [branchId],
+      };
+    }
+
+    console.log(filters);
+    // const template = await FormTemplateModel.findById(templateId);
+
+    // if (!template) {
+    //   throw new AppError(404, 'getTaskList', 'Ажлын төрөл олдсонгүй');
+    // }
+
+    // const showKeys = template.fields
+    //   .filter((f: any) => f.showInTable)
+    //   .map((f: any) => f.name);
+
+    // const taskFormData = await TaskFormDataModel.find({
+    //   formTemplateId: templateId,
+    // }).lean();
 
     const tasks = await TaskModel.find(filters)
       .select('-__v -createdAt -updatedAt')
-      .populate('assignees', '_id givenname surname position rank')
+      .populate('assignee', '_id givenname surname position rank')
       .populate('createdBy', '_id givenname surname position rank')
+      .populate('formTemplateId', '_id name')
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(pageSize);
@@ -334,13 +407,336 @@ export class TaskService {
   };
 
   async getTaskDetail(taskId: string) {
-    const task = await TaskModel.findById(taskId)
-      .populate('assignees')
-      .populate('createdBy')
-      .populate('files')
-      .populate('evaluations')
-      .lean();
-    if (!task) throw new AppError(404, 'TaskDetail', 'Даалгавар олдсонгүй');
-    return task;
+    const task = await TaskModel.aggregate([
+      {
+        $match: { _id: new Types.ObjectId(taskId) },
+      },
+      {
+        $lookup: {
+          from: 'taskformdatas',
+          localField: '_id',
+          foreignField: 'taskId',
+          as: 'formData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'formtemplates',
+          let: {
+            formTemplateId: { $arrayElemAt: ['$formData.formTemplateId', 0] },
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$_id', '$$formTemplateId'] },
+              },
+            },
+          ],
+          as: 'formTemplate',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'assignee',
+          foreignField: '_id',
+          as: 'assignee',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+        },
+      },
+      {
+        $lookup: {
+          from: 'files',
+          localField: '_id',
+          foreignField: 'task',
+          as: 'files',
+        },
+      },
+      {
+        $lookup: {
+          from: 'evaluations',
+          localField: '_id',
+          foreignField: 'task',
+          as: 'evaluations',
+        },
+      },
+      {
+        $addFields: {
+          formTemplate: { $arrayElemAt: ['$formTemplate', 0] },
+          assignee: { $arrayElemAt: ['$assignee', 0] },
+          createdBy: { $arrayElemAt: ['$createdBy', 0] },
+          formData: { $arrayElemAt: ['$formData', 0] },
+        },
+      },
+      {
+        $addFields: {
+          formValues: {
+            $map: {
+              input: {
+                $filter: {
+                  input: '$formData.fields',
+                  as: 'f',
+                  cond: { $ne: ['$$f.value', null] },
+                },
+              },
+              as: 'f',
+              in: {
+                $let: {
+                  vars: {
+                    labelObj: {
+                      $first: {
+                        $filter: {
+                          input: '$formTemplate.fields',
+                          as: 'templateField',
+                          cond: {
+                            $eq: [
+                              { $toLower: '$$templateField.name' },
+                              { $toLower: '$$f.key' },
+                            ],
+                          },
+                        },
+                      },
+                    },
+                  },
+                  in: {
+                    label: {
+                      $cond: {
+                        if: { $gt: ['$$labelObj', null] },
+                        then: '$$labelObj.label',
+                        else: '$$f.key',
+                      },
+                    },
+                    value: '$$f.value',
+                    type: {
+                      $cond: {
+                        if: { $gt: ['$$labelObj', null] },
+                        then: '$$labelObj.type',
+                        else: 'text',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          formData: 0,
+          formTemplate: 0,
+          'assignee.password': 0,
+          'assignee.updateAt': 0,
+          'assignee.__v': 0,
+          'assignee.role': 0,
+          'createdBy.password': 0,
+          'createdBy.updatedAt': 0,
+          'createdBy.__v': 0,
+          'createdBy.role': 0,
+          __v: 0,
+          updatedAt: 0,
+        },
+      },
+    ]);
+    if (!task || task?.length < 1)
+      throw new AppError(404, 'TaskDetail', 'Даалгавар олдсонгүй');
+    return task[0];
   }
+
+  getTasksWithFormSearch = async (
+    authUser: AuthUserType,
+    formTemplateId: string,
+    {
+      page = 1,
+      pageSize = 10,
+      sortBy = 'createdAt',
+      sortDirection = 'desc',
+    }: Pagination,
+    { search, me }: { search?: string; me?: string },
+    query?: Record<string, any>
+  ) => {
+    const matchFilters: any[] = [];
+
+    const template = await FormTemplateModel.findById(formTemplateId);
+    if (!template) {
+      throw new AppError(404, 'task list', 'Төрлийн мэдээлэл олдсонгүй');
+    }
+
+    const branchService = new BranchService();
+    const branches = await branchService.getBranchWithChildren(
+      authUser.branchId
+    );
+    console.log('branches ', branches);
+    const showFields = template.fields.filter((f) => f.showInTable === true);
+    const showKeys = showFields.map((f) => f.name);
+    const searchTextFields = showFields
+      .filter(
+        (f) =>
+          f.type === FieldTypes.TEXT_INPUT || f.type === FieldTypes.TEXTAREA
+      )
+      .map((f) => f.name);
+
+    let rootMatchQuery: any = {};
+    if (search) {
+      if (searchTextFields?.length > 0 && me !== 'true') {
+        const regexOrConditions: any = searchTextFields.map((name) => {
+          return {
+            'formData.fields': {
+              $elemMatch: {
+                key: name,
+                value: {
+                  $regex: search,
+                  $options: 'i',
+                },
+              },
+            },
+          };
+        });
+        regexOrConditions.push({
+          title: {
+            $regex: search,
+            $options: 'i',
+          },
+        });
+        matchFilters.push({ $or: regexOrConditions });
+      } else {
+        rootMatchQuery = {
+          $text: { $search: '324' },
+        };
+      }
+    }
+
+    if (me === 'true') {
+      rootMatchQuery = {
+        ...rootMatchQuery,
+        assignee: authUser.id,
+      };
+    }
+
+    if (query) {
+      const queryKeys = Object.keys(query);
+      queryKeys.map((key) => {
+        if (query[key]) {
+          matchFilters.push({
+            'formData.fields': {
+              $elemMatch: {
+                key: key,
+                value: query[key],
+              },
+            },
+          });
+        }
+      });
+    }
+
+    const sortNumber = sortDirection === 'asc' ? 1 : -1;
+
+    let project: ProjectionFields<ITask> = {
+      title: 1,
+      status: 1,
+      startDate: 1,
+      endDate: 1,
+      priority: 1,
+      assignee: {
+        _id: 1,
+        givenname: 1,
+        surname: 1, // Хэрэгтэй талбаруудаа сонгоорой
+        profileImageUrl: 1,
+      },
+      createdBy: {
+        _id: 1,
+        givenname: 1,
+        surname: 1, // Хэрэгтэй талбаруудаа сонгоорой
+        profileImageUrl: 1,
+      },
+    };
+
+    if (showKeys.length > 0 && me !== 'true') {
+      project = {
+        ...project,
+        formValues: {
+          $arrayToObject: {
+            $map: {
+              input: {
+                $filter: {
+                  input: { $arrayElemAt: ['$formData.fields', 0] },
+                  as: 'f',
+                  cond: { $in: ['$$f.key', showKeys] },
+                },
+              },
+              as: 'f',
+              in: ['$$f.key', '$$f.value'],
+            },
+          },
+        },
+      };
+    }
+
+    const data = await TaskModel.aggregate([
+      {
+        $match: {
+          branchId: {
+            $in: branches?.map((b) => b._id) || [authUser.branchId],
+          },
+          formTemplateId: new Types.ObjectId(formTemplateId),
+          ...rootMatchQuery,
+        },
+      },
+      {
+        $lookup: {
+          from: 'taskformdatas',
+          localField: '_id',
+          foreignField: 'taskId',
+          as: 'formData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'assignee',
+          foreignField: '_id',
+          as: 'assignee',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+        },
+      },
+      {
+        $unwind: {
+          path: '$assignee',
+        },
+      },
+      {
+        $unwind: {
+          path: '$createdBy',
+        },
+      },
+      ...(matchFilters.length > 0 ? [{ $match: { $and: matchFilters } }] : []),
+      { $sort: { [sortBy]: sortNumber } },
+      { $skip: (page - 1) * pageSize },
+      { $limit: pageSize },
+      {
+        $project: project,
+      },
+    ]);
+
+    return {
+      currentPage: page,
+      rows: data,
+      total: 1,
+      totalPages: 1,
+    };
+  };
 }

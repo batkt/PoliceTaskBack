@@ -1,6 +1,7 @@
 export type AuthUserType = {
   id: string; // Хэрэглэгчийн ID
-  role?: string; // Хэрэглэгчийн үүрэг (хэрэв байгаа бол)
+  role: string; // Хэрэглэгчийн үүрэг (хэрэв байгаа бол)
+  branchId: string;
 };
 
 export type CreateUserType = {

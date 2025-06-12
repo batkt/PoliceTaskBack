@@ -28,6 +28,8 @@ router.post('/evaluate', controller.evaluateTask.bind(controller));
 // Хэрэглэгчийн бүх даалгавар авах
 router.get('/', controller.getTasks.bind(controller));
 
+router.get('/list-test', controller.getTasksWithFormSearch.bind(controller));
+
 // Даалгаврын дэлгэрэнгүй
 router.get('/:id', controller.getTaskDetail.bind(controller));
 
