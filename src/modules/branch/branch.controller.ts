@@ -16,7 +16,7 @@ export class BranchController {
       const authUser = req.user!;
 
       if (!canAccess(authUser, SuperAdminActions.CREATE_BRANCH)) {
-        return new AppError(
+        throw new AppError(
           403,
           'Create branch',
           'Та энэ үйлдлийг хийх эрхгүй байна.'

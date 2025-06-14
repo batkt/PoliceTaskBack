@@ -21,7 +21,6 @@ import {
 import { SocketService } from '../socket/socket.service';
 import { FormTemplateModel } from '../form/form.model';
 import { FieldTypes } from '../form/form.types';
-import { BranchService } from '../branch/branch.service';
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -113,27 +112,42 @@ export class TaskService {
     }
   };
 
-  async addFileToTask(taskId: string, fileId: string) {
-    const file = await FileModel.findById(fileId);
-
-    if (!file) {
-      throw new AppError(404, 'Add File To Task', 'Файл олдсонгүй');
-    }
-
-    file.task = new Types.ObjectId(taskId);
-    file.isActive = true;
-
-    await file.save();
-
+  async addFileToTask(
+    authUser: AuthUserType,
+    taskId: string,
+    fileIds: string[]
+  ) {
     const task = await TaskModel.findById(taskId);
     if (!task) {
       throw new AppError(404, 'Add File To Task', 'Даалгавар олдсонгүй');
     }
 
+    if (authUser.role === 'user' && task.assignee.toString() !== authUser.id) {
+      throw new AppError(
+        403,
+        'Attach file',
+        'Та энэ үйлдлийг хийх эрхгүй байна.'
+      );
+    }
+
+    const updated = await FileModel.updateMany(
+      {
+        _id: {
+          $in: fileIds,
+        },
+      },
+      {
+        $set: {
+          task: new Types.ObjectId(taskId),
+          isActive: true,
+        },
+      }
+    );
+
     const recipients = [
       task.createdBy.toString(),
       task.assignee.toString(),
-    ].filter((id) => id !== file.uploadedBy.toString());
+    ].filter((id) => id !== authUser.id);
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
@@ -145,8 +159,47 @@ export class TaskService {
       });
     }
 
-    return file;
+    const files = await FileModel.find({
+      task: taskId,
+    })
+      .select('-__v')
+      .lean();
+
+    return files;
   }
+
+  removeFileFromTask = async (
+    authUser: AuthUserType,
+    taskId: string,
+    fileIds: string[]
+  ) => {
+    const task = await TaskModel.findById(taskId);
+    if (!task) {
+      throw new AppError(404, 'Add File To Task', 'Даалгавар олдсонгүй');
+    }
+
+    const updated = await FileModel.updateMany(
+      {
+        _id: {
+          $in: fileIds,
+        },
+      },
+      {
+        $set: {
+          task: null,
+          isActive: false,
+        },
+      }
+    );
+
+    const files = await FileModel.find({
+      task: taskId,
+    })
+      .select('-__v')
+      .lean();
+
+    return files;
+  };
 
   async startTask(taskId: string, authUser: AuthUserType) {
     const user = await UserModel.findById(authUser.id);

@@ -10,6 +10,8 @@ router.post('/', controller.createTask.bind(controller));
 // Даалгаварт файл холбох
 router.post('/file', controller.addFileToTask.bind(controller));
 
+router.post('/removeFile', controller.removeFileFromTask.bind(controller));
+
 // Даалгавар эхлүүлэх (in_progress)
 router.post('/start', controller.startTask.bind(controller));
 

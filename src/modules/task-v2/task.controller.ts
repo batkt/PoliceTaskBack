@@ -31,7 +31,7 @@ export class TaskController {
           : AdminActions.CREATE_TASK;
 
       if (!canAccess(authUser, action)) {
-        return new AppError(
+        throw new AppError(
           403,
           'Create task',
           'Та энэ үйлдлийг хийх эрхгүй байна.'
@@ -51,13 +51,54 @@ export class TaskController {
 
   async addFileToTask(req: Request, res: Response, next: NextFunction) {
     try {
-      const { taskId, fileId } = req.body;
-      const file = await this.taskService.addFileToTask(taskId, fileId);
+      const authUser = req.user!;
+      const { taskId, fileIds } = req.body;
+
+      if (
+        !canAccess(
+          authUser,
+          authUser.role === 'user'
+            ? UserActions.ATTACH_FILE_OWN_TASK
+            : AdminActions.ATTACH_FILE_TASK
+        )
+      ) {
+        throw new AppError(
+          403,
+          'Attach file',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+
+      const file = await this.taskService.addFileToTask(
+        authUser,
+        taskId,
+        fileIds
+      );
       this.handleSuccess(res, file);
     } catch (error) {
       next(error);
     }
   }
+
+  removeFileFromTask = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const authUser = req.user!;
+      const { taskId, fileIds } = req.body;
+
+      const file = await this.taskService.removeFileFromTask(
+        authUser,
+        taskId,
+        fileIds
+      );
+      this.handleSuccess(res, file);
+    } catch (error) {
+      next(error);
+    }
+  };
 
   async startTask(req: Request, res: Response, next: NextFunction) {
     try {
