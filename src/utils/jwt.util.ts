@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
+import { Role } from '../types/roles';
 
 type Payload = {
   userId: string;
-  role: string;
+  role: Role;
   branchId: string;
 };
 

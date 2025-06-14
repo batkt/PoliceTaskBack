@@ -7,14 +7,6 @@ export class BranchService {
   createBranch = async (user: AuthUserType, branchData: CreateBranchType) => {
     const { name, parentId } = branchData;
 
-    if (user.role !== 'super-admin') {
-      throw new AppError(
-        403,
-        'Branch create',
-        'Та энэ үйлдлийг хийх эрхгүй байна.'
-      );
-    }
-
     // Neg etsegtai ijil nertei salbar baina uu? shalgah
     const existingBranch = await BranchModel.findOne({
       name,
@@ -40,7 +32,9 @@ export class BranchService {
       }
       isParent = false;
       _parentId = parentId;
-      path = `${parentBranch.path}/${parentBranch._id}`;
+      path = parentBranch.isParent
+        ? parentBranch.id
+        : `${parentBranch.path}/${parentBranch._id}`;
     }
 
     // Create new branch
@@ -61,7 +55,12 @@ export class BranchService {
     const branch = await BranchModel.findById(id);
     if (!branch) throw new Error('Branch not found');
 
-    return BranchModel.find({ path: { $regex: `^${branch.path}` } });
+    const path = branch.isParent ? branch.id : `${branch.path}/${branch.id}`;
+    const children = await BranchModel.find({
+      path: { $regex: `^${path}` },
+    });
+
+    return [branch, ...children];
   }
 
   async getAll(): Promise<IBranch[]> {

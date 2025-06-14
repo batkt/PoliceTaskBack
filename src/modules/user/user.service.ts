@@ -4,17 +4,10 @@ import { Pagination } from '../../types/pagination';
 import { hashPassword } from '../../utils/password.util';
 import { AuthUserType, CreateUserType } from '../user/user.types';
 import { IUser, UserModel } from './user.model';
+import { LoginHistory } from '../login-history/login-history.model';
 
 export class UserService {
   register = async (user: AuthUserType, userData: CreateUserType) => {
-    if (user.role !== 'super-admin') {
-      throw new AppError(
-        403,
-        'Register user',
-        'Та энэ үйлдлийг хийх эрхгүй байна.'
-      );
-    }
-
     // Ajiltanii code burtgeltei esehig shalgah
     const existingUser = await UserModel.findOne({
       workerId: userData.workerId,
@@ -77,9 +70,18 @@ export class UserService {
   getProfile = async (user: AuthUserType) => {
     const foundUser = await UserModel.findById(user.id)
       .select('-password -__v -createdAt -updatedAt')
-      .populate('branch', '_id name isParent');
+      .populate('branch', '_id name isParent path')
+      .lean();
 
-    return foundUser;
+    const lastLogin = await LoginHistory.findOne({
+      userId: user.id,
+      success: true,
+    })
+      .sort({ createdAt: -1 })
+      .select('-__v -reason')
+      .lean();
+
+    return { ...foundUser, lastLogin };
   };
 
   getAll = async () => {

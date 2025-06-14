@@ -1,8 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import { UserService } from './user.service';
 import { IUser } from './user.model';
-import { escapeRegex, parseFilters } from '../../utils/filter.util';
 import { FilterQuery } from 'mongoose';
+import {
+  canAccess,
+  getAccessibleBranches,
+} from '../../middleware/permission.middleware';
+import { AdminActions } from '../../types/roles';
+import { AppError } from '../../middleware/error.middleware';
 
 export class UserController {
   private userService: UserService;
@@ -14,6 +19,29 @@ export class UserController {
   register = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUser = req.user!;
+
+      const branches = await getAccessibleBranches(authUser);
+
+      if (
+        !branches.includes('*') &&
+        !branches.includes(req.body?.branchId || '')
+      ) {
+        throw new AppError(
+          403,
+          'Register user',
+          'Та тус алба, хэлтэст алба хаагч бүртгэх эрхгүй байна.'
+        );
+      }
+
+      console.log(authUser);
+      if (!canAccess(authUser, AdminActions.REGISTER_USER)) {
+        throw new AppError(
+          403,
+          'Register user',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+
       const user = await this.userService.register(authUser, req.body);
       res.status(201).json({
         code: 200,
@@ -26,6 +54,7 @@ export class UserController {
 
   getList = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authUser = req.user!;
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
       const sortBy = (req.query.sort as string) || '_id';
@@ -35,13 +64,20 @@ export class UserController {
       const search = req.query.search as string;
 
       let filters: FilterQuery<IUser> = {};
+      if (authUser.role === 'super-admin') {
+        filters = {}; // unrestricted
+      } else if (authUser.role === 'admin') {
+        const branches = await getAccessibleBranches(authUser);
+        filters = { branch: { $in: branches } };
+      } else {
+        // user өөрийн даалгавар л үзнэ
+        filters = { branch: authUser.branchId };
+      }
+
       if (search) {
-        filters.$or = [
-          { surname: { $regex: escapeRegex(search), $options: 'i' } },
-          { givenname: { $regex: escapeRegex(search), $options: 'i' } },
-          { rank: { $regex: escapeRegex(search), $options: 'i' } },
-          { position: { $regex: escapeRegex(search), $options: 'i' } },
-        ];
+        filters.$text = {
+          $search: search,
+        };
       }
 
       const user = await this.userService.getList({
@@ -51,6 +87,7 @@ export class UserController {
         sortDirection,
         filters,
       });
+
       res.status(200).json({
         code: 200,
         data: user,

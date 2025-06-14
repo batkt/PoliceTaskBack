@@ -1,5 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { BranchService } from './branch.service';
+import { AdminActions, SuperAdminActions } from '../../types/roles';
+import { canAccess } from '../../middleware/permission.middleware';
+import { AppError } from '../../middleware/error.middleware';
 
 export class BranchController {
   private branchService: BranchService;
@@ -11,6 +14,15 @@ export class BranchController {
   createBranch = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUser = req.user!;
+
+      if (!canAccess(authUser, SuperAdminActions.CREATE_BRANCH)) {
+        return new AppError(
+          403,
+          'Create branch',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+
       const branch = await this.branchService.createBranch(authUser, req.body);
       res.status(201).json({
         code: 200,

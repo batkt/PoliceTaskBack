@@ -32,19 +32,10 @@ export class TaskService {
     this.socketService = new SocketService();
   }
 
-  async createTask(input: ICreateTaskInput, user: IUser): Promise<ITask> {
-    if (!input?.assignee) {
-      throw new AppError(400, 'CreateTask', 'Хариуцагч сонгоогүй байна.');
-    }
-
-    if (input.assignee !== user.id && user.role === 'user') {
-      throw new AppError(
-        403,
-        'Register user',
-        'Та энэ үйлдлийг хийх эрхгүй байна.'
-      );
-    }
-
+  private async createTask(
+    input: ICreateTaskInput,
+    user: IUser
+  ): Promise<ITask> {
     // startDate < now
     let status = 'pending';
     const startDate = new Date(input.startDate);
@@ -81,7 +72,7 @@ export class TaskService {
     try {
       const user = await UserModel.findById(authUser.id);
       if (!user) {
-        throw new AppError(404, 'CreateTask', 'Хэрэглэгч олдсонгүй');
+        throw new AppError(404, 'Create Task', 'Хэрэглэгч олдсонгүй');
       }
 
       const { formTemplateId, assignee } = taskInput;
@@ -350,62 +341,6 @@ export class TaskService {
     return evaluation;
   }
 
-  getList = async (
-    {
-      page = 1,
-      pageSize = 10,
-      sortBy = 'createdAt',
-      sortDirection = 'desc',
-      filters = {},
-    }: Pagination & {
-      filters?: FilterQuery<ITask>;
-    },
-    branchId: string
-  ) => {
-    const skip = (page - 1) * pageSize;
-    if (branchId) {
-      const branchService = new BranchService();
-      const branches = await branchService.getBranchWithChildren(branchId);
-
-      filters.branchId = {
-        $in: branches?.map((b) => b._id) || [branchId],
-      };
-    }
-
-    console.log(filters);
-    // const template = await FormTemplateModel.findById(templateId);
-
-    // if (!template) {
-    //   throw new AppError(404, 'getTaskList', 'Ажлын төрөл олдсонгүй');
-    // }
-
-    // const showKeys = template.fields
-    //   .filter((f: any) => f.showInTable)
-    //   .map((f: any) => f.name);
-
-    // const taskFormData = await TaskFormDataModel.find({
-    //   formTemplateId: templateId,
-    // }).lean();
-
-    const tasks = await TaskModel.find(filters)
-      .select('-__v -createdAt -updatedAt')
-      .populate('assignee', '_id givenname surname position rank')
-      .populate('createdBy', '_id givenname surname position rank')
-      .populate('formTemplateId', '_id name')
-      .sort({ [sortBy]: sortDirection })
-      .skip(skip)
-      .limit(pageSize);
-
-    const total = await TaskModel.countDocuments(filters);
-
-    return {
-      currentPage: page,
-      rows: tasks,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
-  };
-
   async getTaskDetail(taskId: string) {
     const task = await TaskModel.aggregate([
       {
@@ -551,29 +486,25 @@ export class TaskService {
   }
 
   getTasksWithFormSearch = async (
-    authUser: AuthUserType,
-    formTemplateId: string,
     {
       page = 1,
       pageSize = 10,
       sortBy = 'createdAt',
       sortDirection = 'desc',
-    }: Pagination,
-    { search, me }: { search?: string; me?: string },
+      filters = {},
+    }: Pagination & { filters: FilterQuery<ITask> },
+    formTemplateId: string,
+    { search }: { search?: string },
     query?: Record<string, any>
   ) => {
     const matchFilters: any[] = [];
+    let rootMatchQuery: FilterQuery<ITask> = filters;
 
     const template = await FormTemplateModel.findById(formTemplateId);
     if (!template) {
       throw new AppError(404, 'task list', 'Төрлийн мэдээлэл олдсонгүй');
     }
 
-    const branchService = new BranchService();
-    const branches = await branchService.getBranchWithChildren(
-      authUser.branchId
-    );
-    console.log('branches ', branches);
     const showFields = template.fields.filter((f) => f.showInTable === true);
     const showKeys = showFields.map((f) => f.name);
     const searchTextFields = showFields
@@ -583,9 +514,8 @@ export class TaskService {
       )
       .map((f) => f.name);
 
-    let rootMatchQuery: any = {};
     if (search) {
-      if (searchTextFields?.length > 0 && me !== 'true') {
+      if (searchTextFields?.length > 0) {
         const regexOrConditions: any = searchTextFields.map((name) => {
           return {
             'formData.fields': {
@@ -607,17 +537,10 @@ export class TaskService {
         });
         matchFilters.push({ $or: regexOrConditions });
       } else {
-        rootMatchQuery = {
-          $text: { $search: '324' },
+        rootMatchQuery.$text = {
+          $search: '324',
         };
       }
-    }
-
-    if (me === 'true') {
-      rootMatchQuery = {
-        ...rootMatchQuery,
-        assignee: authUser.id,
-      };
     }
 
     if (query) {
@@ -658,7 +581,7 @@ export class TaskService {
       },
     };
 
-    if (showKeys.length > 0 && me !== 'true') {
+    if (showKeys.length > 0) {
       project = {
         ...project,
         formValues: {
@@ -682,9 +605,6 @@ export class TaskService {
     const data = await TaskModel.aggregate([
       {
         $match: {
-          branchId: {
-            $in: branches?.map((b) => b._id) || [authUser.branchId],
-          },
           formTemplateId: new Types.ObjectId(formTemplateId),
           ...rootMatchQuery,
         },
@@ -737,6 +657,40 @@ export class TaskService {
       rows: data,
       total: 1,
       totalPages: 1,
+    };
+  };
+
+  getUserTasks = async ({
+    page = 1,
+    pageSize = 10,
+    sortBy = 'createdAt',
+    sortDirection = 'desc',
+    filters = {},
+  }: Pagination & { filters: FilterQuery<ITask> }) => {
+    const skip = (page - 1) * pageSize;
+
+    const tasks = await TaskModel.find(filters)
+      .select('-__v -createdAt -updatedAt')
+      .populate(
+        'assignee',
+        '_id givenname surname position rank profileImageUrl'
+      )
+      .populate(
+        'createdBy',
+        '_id givenname surname position rank profileImageUrl'
+      )
+      .populate('formTemplateId', '_id name')
+      .sort({ [sortBy]: sortDirection })
+      .skip(skip)
+      .limit(pageSize);
+
+    const total = await TaskModel.countDocuments(filters);
+
+    return {
+      currentPage: page,
+      rows: tasks,
+      total,
+      totalPages: Math.ceil(total / pageSize),
     };
   };
 }

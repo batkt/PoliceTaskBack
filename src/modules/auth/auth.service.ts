@@ -23,7 +23,9 @@ export class AuthService {
     // Find user
     const user = await UserModel.findOne({
       workerId: { $regex: `^${workerId}$`, $options: 'i' },
-    });
+    })
+      .select('-__v -createdAt -updatedAt')
+      .populate('branch', '_id name isParent path');
 
     if (!user) {
       throw new AppError(
@@ -50,7 +52,7 @@ export class AuthService {
     }
 
     // save login history
-    await this.loginHistoryService.createLoginHistory({
+    const lastAction = await this.loginHistoryService.createLoginHistory({
       userId: user.id,
       ...deviceInfo,
       success: true,
@@ -60,14 +62,17 @@ export class AuthService {
     const accessToken = generateAccessToken({
       userId: user._id!.toString(),
       role: user.role,
-      branchId: user.branch.toString(),
+      branchId: user.branch._id.toString(),
     });
 
     const { password: uPass, ...userWithoutPassword } = user.toObject();
 
     return {
       accessToken,
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        lastLogin: lastAction,
+      },
     };
   }
 

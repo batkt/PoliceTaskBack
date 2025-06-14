@@ -26,9 +26,9 @@ router.post('/audit', controller.auditTask.bind(controller));
 router.post('/evaluate', controller.evaluateTask.bind(controller));
 
 // Хэрэглэгчийн бүх даалгавар авах
-router.get('/', controller.getTasks.bind(controller));
+router.get('/', controller.getTasksWithFormSearch.bind(controller));
 
-router.get('/list-test', controller.getTasksWithFormSearch.bind(controller));
+router.get('/my-list', controller.getUserTasks.bind(controller));
 
 // Даалгаврын дэлгэрэнгүй
 router.get('/:id', controller.getTaskDetail.bind(controller));

@@ -1,8 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import { TaskService } from './task.service';
-import { FilterQuery, Types } from 'mongoose';
+import { FilterQuery } from 'mongoose';
 import { ITask } from './task.model';
-import { escapeRegex } from '../../utils/filter.util';
+import { AdminActions, UserActions } from '../../types/roles';
+import {
+  canAccess,
+  getAccessibleBranches,
+} from '../../middleware/permission.middleware';
+import { AppError } from '../../middleware/error.middleware';
 
 export class TaskController {
   private taskService = new TaskService();
@@ -15,6 +20,24 @@ export class TaskController {
     try {
       const authUser = req.user!;
       const { formValues, ...input } = req.body;
+
+      if (!input?.assignee) {
+        throw new AppError(400, 'Create Task', 'Хариуцагч сонгоогүй байна.');
+      }
+
+      const action =
+        authUser.id === input?.assignee
+          ? UserActions.CREATE_OWN_TASK
+          : AdminActions.CREATE_TASK;
+
+      if (!canAccess(authUser, action)) {
+        return new AppError(
+          403,
+          'Create task',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+
       const task = await this.taskService.createTaskWithForm(
         input,
         formValues,
@@ -111,50 +134,6 @@ export class TaskController {
     }
   }
 
-  getTasks = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const authUser = req.user!;
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 10;
-      const sort = (req.query.sort as string) || 'createdAt';
-      const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
-      const status = req.query.status as string;
-      const title = req.query.title as string;
-      const me = req.query.onlyMe as string;
-
-      let filters: FilterQuery<ITask> = {};
-      if (status && status !== 'all') {
-        filters.status = status;
-      }
-
-      if (title) {
-        filters.title = { $regex: escapeRegex(title), $options: 'i' };
-      }
-
-      if (me === 'true') {
-        filters.assignee = authUser.id;
-      }
-
-      const tasks = await this.taskService.getList(
-        {
-          page,
-          pageSize,
-          sortBy: sort,
-          sortDirection: order,
-          filters,
-        },
-        authUser.branchId
-      );
-
-      res.status(200).json({
-        code: 200,
-        data: tasks,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
   getTasksWithFormSearch = async (
     req: Request,
     res: Response,
@@ -167,36 +146,81 @@ export class TaskController {
       const sort = (req.query.sort as string) || 'createdAt';
       const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
       const formTemplateId = req.query.formTemplateId as string;
-      // const status = req.query.status as string;
+      const status = req.query.status as string;
       const search = req.query.search as string;
-      const me = req.query.onlyMe as string;
 
-      // let filters: FilterQuery<ITask> = {};
-      // if (status && status !== 'all') {
-      //   filters.status = status;
-      // }
+      let filters: FilterQuery<ITask> = {};
 
-      // if (title) {
-      //   filters.title = { $regex: escapeRegex(title), $options: 'i' };
-      // }
+      if (authUser.role === 'super-admin') {
+        filters = {}; // unrestricted
+      } else if (authUser.role === 'admin') {
+        const branches = await getAccessibleBranches(authUser);
+        filters = { branchId: { $in: branches } };
+      } else {
+        // user өөрийн даалгавар л үзнэ
+        filters = { assignee: authUser.id };
+      }
 
-      // if (me === 'true') {
-      //   filters.assignees = {
-      //     $in: authUser.id,
-      //   };
-      // }
+      if (status && status !== 'all') {
+        filters.status = status;
+      }
 
       const tasks = await this.taskService.getTasksWithFormSearch(
-        authUser,
-        formTemplateId,
         {
           page,
           pageSize,
           sortBy: sort,
           sortDirection: order,
+          filters,
         },
-        { search, me }
+        formTemplateId,
+        { search }
       );
+
+      res.status(200).json({
+        code: 200,
+        data: tasks,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getUserTasks = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const sort = (req.query.sort as string) || 'createdAt';
+      const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+      const formTemplateId = req.query.formTemplateId as string;
+      const status = req.query.status as string;
+      const search = req.query.search as string;
+
+      let filters: FilterQuery<ITask> = {
+        assignee: authUser.id,
+      };
+
+      if (status && status !== 'all') {
+        filters.status = status;
+      }
+
+      if (formTemplateId) {
+        filters.formTemplateId = formTemplateId;
+      }
+      if (search) {
+        filters.$text = {
+          $search: search,
+        };
+      }
+
+      const tasks = await this.taskService.getUserTasks({
+        page,
+        pageSize,
+        sortBy: sort,
+        sortDirection: order,
+        filters,
+      });
 
       res.status(200).json({
         code: 200,
