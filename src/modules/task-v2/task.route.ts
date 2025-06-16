@@ -21,6 +21,9 @@ router.post('/complete', controller.completeTask.bind(controller));
 // Даалгаварт тэмдэглэл нэмэх
 router.post('/note', controller.addNote.bind(controller));
 
+// Хуваарилах
+router.post('/assign', controller.assignTask.bind(controller));
+
 // Хяналт хийх (approved/rejected)
 router.post('/audit', controller.auditTask.bind(controller));
 

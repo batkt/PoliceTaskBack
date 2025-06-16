@@ -25,6 +25,9 @@ import { FileService } from './modules/file/file.service';
 import { getRedisClient } from './config/redis';
 import { clearStaleSocketsOnStartup } from './utils/redis.util';
 import { formRouter } from './modules/form/form.route';
+import { noteRouter } from './modules/note/note.route';
+import { auditRouter } from './modules/audit/audit.route';
+import { activityRouter } from './modules/activity/activity.route';
 
 const app = express();
 
@@ -65,6 +68,9 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/notification', authenticate, notificationRouter);
 app.use('/api/file', authenticate, fileRouter);
 app.use('/api/form', authenticate, formRouter);
+app.use('/api/note', authenticate, noteRouter);
+app.use('/api/audit', authenticate, auditRouter);
+app.use('/api/actvivity', authenticate, activityRouter);
 
 // Global error handler
 app.use(errorHandler);

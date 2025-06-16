@@ -8,7 +8,7 @@ export class FormService {
   };
 
   getAllFormTemplates = async () => {
-    return await FormTemplateModel.find().sort({ createdAt: -1 }).lean();
+    return await FormTemplateModel.find().sort({ createdAt: 1 }).lean();
   };
 
   getFormTemplateById = async (id: string) => {

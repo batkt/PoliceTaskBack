@@ -21,6 +21,10 @@ const upload = multer({
   },
 });
 
-router.post('/upload', upload.single('file'), fileController.uploadSingle);
+router.post(
+  '/upload',
+  upload.single('file'),
+  fileController.uploadSingle.bind(fileController)
+);
 
 export { router as fileRouter };

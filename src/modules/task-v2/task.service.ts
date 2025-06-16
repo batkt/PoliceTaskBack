@@ -21,6 +21,12 @@ import {
 import { SocketService } from '../socket/socket.service';
 import { FormTemplateModel } from '../form/form.model';
 import { FieldTypes } from '../form/form.types';
+import {
+  generateActivityMessage,
+  logTaskActivity,
+} from '../activity/activity.service';
+import { getAccessibleBranches } from '../../middleware/permission.middleware';
+import { getRankWithName } from '../../utils/user.util';
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -74,6 +80,12 @@ export class TaskService {
         throw new AppError(404, 'Create Task', 'Хэрэглэгч олдсонгүй');
       }
 
+      const assignUser = await UserModel.findById(taskInput.assignee);
+
+      if (!assignUser) {
+        throw new AppError(400, 'Create Task', 'Хүлээн авагч олдсонгүй.');
+      }
+
       const { formTemplateId, assignee } = taskInput;
       const task = await this.createTask(taskInput, user);
 
@@ -87,6 +99,30 @@ export class TaskService {
         formTemplateId,
         fields,
       });
+
+      await logTaskActivity(
+        task.id,
+        user.id,
+        'created',
+        generateActivityMessage('created')
+      );
+
+      await logTaskActivity(
+        task.id,
+        authUser.id,
+        'assigned',
+        generateActivityMessage('assigned', getRankWithName(assignUser))
+      );
+
+      await logTaskActivity(
+        task.id,
+        user.id,
+        'status-changed',
+        generateActivityMessage(
+          'status-changed',
+          task.status === 'active' ? 'Идэвхитэй' : 'Хүлээгдэж байгаа'
+        )
+      );
 
       await session.commitTransaction();
 
@@ -144,6 +180,13 @@ export class TaskService {
       }
     );
 
+    await logTaskActivity(
+      task.id,
+      authUser.id,
+      'file-attached',
+      generateActivityMessage('file-attached')
+    );
+
     const recipients = [
       task.createdBy.toString(),
       task.assignee.toString(),
@@ -192,6 +235,13 @@ export class TaskService {
       }
     );
 
+    await logTaskActivity(
+      task.id,
+      authUser.id,
+      'file-deleted',
+      generateActivityMessage('file-deleted')
+    );
+
     const files = await FileModel.find({
       task: taskId,
     })
@@ -208,7 +258,7 @@ export class TaskService {
     }
     const task = await TaskModel.findById(taskId);
     if (!task) throw new AppError(404, 'StartTask', 'Даалгавар олдсонгүй');
-    if (task.assignee !== user.id)
+    if (task.assignee.toString() !== user.id)
       throw new AppError(
         403,
         'StartTask',
@@ -227,6 +277,13 @@ export class TaskService {
     await task.save();
     await changeCountStatus(currentStatus, newStatus);
     this.socketService.broadcastDashboardStats();
+
+    await logTaskActivity(
+      task.id,
+      authUser.id,
+      'status-changed',
+      generateActivityMessage('status-changed', 'Хийгдэж байгаа')
+    );
 
     const recipients = [
       task.createdBy.toString(),
@@ -253,7 +310,7 @@ export class TaskService {
     }
     const task = await TaskModel.findById(taskId);
     if (!task) throw new AppError(404, 'CompleteTask', 'Даалгавар олдсонгүй');
-    if (task.assignee !== user.id)
+    if (task.assignee.toString() !== user.id)
       throw new AppError(
         403,
         'CompleteTask',
@@ -265,6 +322,13 @@ export class TaskService {
         'CompleteTask',
         'Тус даалгавар дуусгах боломжгүй төлөвт байна.'
       );
+
+    await logTaskActivity(
+      task.id,
+      user.id,
+      'status-changed',
+      generateActivityMessage('status-changed', 'Дууссан')
+    );
 
     const currentStatus = task.status;
     const newStatus = TaskStatus.COMPLETED;
@@ -293,7 +357,21 @@ export class TaskService {
 
   async addNote(input: INoteInput, authUser: AuthUserType) {
     const task = await TaskModel.findById(input.taskId);
-    if (!task) throw new AppError(404, 'AddNote', 'Даалгавар олдсонгүй');
+    if (!task) {
+      throw new AppError(404, 'Add note', 'Даалгавар олдсонгүй');
+    }
+
+    const branches = await getAccessibleBranches(authUser);
+    if (!branches.includes('*')) {
+      if (!branches.includes(task.branchId.toString())) {
+        throw new AppError(
+          403,
+          'Add note',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+    }
+
     if ([TaskStatus.COMPLETED, TaskStatus.REVIEWED].includes(task.status)) {
       throw new AppError(
         400,
@@ -301,7 +379,18 @@ export class TaskService {
         'Дууссан эсвэл хянагдсан даалгаварт тэмдэглэл нэмэх боломжгүй'
       );
     }
-    const note = await NoteModel.create(input);
+    const note = await NoteModel.create({
+      content: input.content,
+      task: input.taskId,
+      createdBy: authUser.id,
+    });
+
+    await logTaskActivity(
+      task.id,
+      authUser.id,
+      'commented',
+      generateActivityMessage('commented')
+    );
 
     const recipients = [
       task.createdBy.toString(),
@@ -318,7 +407,12 @@ export class TaskService {
       });
     }
 
-    return note;
+    const newNote = await NoteModel.findById(note._id).populate(
+      'createdBy',
+      '_id givenname surname profileImageUrl rank position'
+    );
+
+    return newNote;
   }
 
   async auditTask(input: IAuditInput, authUser: AuthUserType) {
@@ -330,17 +424,40 @@ export class TaskService {
         'Даалгавар дууссан төлөвтэй байх ёстой'
       );
     }
-    const audit = await AuditModel.create({ ...input, checkedBy: authUser.id });
 
-    const currentStatus = task.status;
+    const audit = await AuditModel.create({
+      task: input.taskId,
+      comments: input.comments,
+      result: input.result,
+      checkedBy: authUser.id,
+    });
+
+    // const currentStatus = task.status;
     const newStatus =
       input.result === AuditResult.APPROVED
         ? TaskStatus.REVIEWED
         : TaskStatus.IN_PROGRESS;
     task.status = newStatus;
     await task.save();
-    await changeCountStatus(currentStatus, newStatus);
-    this.socketService.broadcastDashboardStats();
+
+    await logTaskActivity(
+      input.taskId,
+      authUser.id,
+      'audited',
+      generateActivityMessage(
+        'audited',
+        input.result === 'approved'
+          ? 'зөвшөөрсөн'
+          : `${
+              input?.comments
+                ? `"${input.comments}" шалтгааны улмаас татгалзсан`
+                : 'татгалзсан'
+            }`
+      )
+    );
+
+    // await changeCountStatus(currentStatus, newStatus);
+    // this.socketService.broadcastDashboardStats();
 
     const recipients = [
       task.createdBy.toString(),
@@ -392,6 +509,51 @@ export class TaskService {
     }
 
     return evaluation;
+  }
+
+  async assignTask(
+    authUser: AuthUserType,
+    data: {
+      taskId: string;
+      assignTo: string;
+    }
+  ) {
+    const task = await TaskModel.findById(data.taskId);
+    if (!task) {
+      throw new AppError(400, 'Assign task', 'Даалгавар олдсонгүй.');
+    }
+
+    const user = await UserModel.findById(authUser.id);
+
+    if (!user) {
+      throw new AppError(400, 'Assign task', 'Хэрэглэгч олдсонгүй.');
+    }
+
+    const assignUser = await UserModel.findById(data.assignTo);
+
+    if (!assignUser) {
+      throw new AppError(400, 'Assign task', 'Хүлээн авагч олдсонгүй.');
+    }
+
+    task.assignee = new Types.ObjectId(data.assignTo);
+    await task.save();
+
+    await logTaskActivity(
+      task.id,
+      authUser.id,
+      'assigned',
+      generateActivityMessage('assigned', getRankWithName(assignUser))
+    );
+
+    await this.notificationService.createNotification({
+      title: 'Шинэ даалгавар',
+      type: NotificationType.TASK,
+      message: `${user?.rank} ${user.givenname} танд "${task.title}" даалгаврыг хуваариллаа.`,
+      userId: data.assignTo,
+      taskId: task.id,
+    });
+
+    return true;
   }
 
   async getTaskDetail(taskId: string) {

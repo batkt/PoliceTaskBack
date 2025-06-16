@@ -126,6 +126,22 @@ export class TaskController {
     try {
       const authUser = req.user!;
       const { taskId, content } = req.body;
+
+      if (
+        !canAccess(
+          authUser,
+          authUser.role === 'user'
+            ? UserActions.NOTE_OWN_TASK
+            : AdminActions.NOTE_TASK
+        )
+      ) {
+        throw new AppError(
+          403,
+          'Add note',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+
       const note = await this.taskService.addNote(
         {
           taskId,
@@ -138,11 +154,44 @@ export class TaskController {
       next(error);
     }
   }
+  async assignTask(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authUser = req.user!;
+
+      if (
+        !canAccess(
+          authUser,
+          authUser.role === 'user'
+            ? UserActions.ASSIGN_TASK
+            : AdminActions.ASSIGN_TASK
+        )
+      ) {
+        throw new AppError(
+          403,
+          'Add note',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+      const note = await this.taskService.assignTask(authUser, req.body);
+      this.handleSuccess(res, note);
+    } catch (error) {
+      next(error);
+    }
+  }
 
   async auditTask(req: Request, res: Response, next: NextFunction) {
     try {
       const authUser = req.user!;
       const { taskId, comments, result } = req.body;
+
+      if (!canAccess(authUser, AdminActions.AUDIT_TASK)) {
+        throw new AppError(
+          403,
+          'Audit task',
+          'Та энэ үйлдлийг хийх эрхгүй байна.'
+        );
+      }
+
       const audit = await this.taskService.auditTask(
         {
           taskId,
