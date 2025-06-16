@@ -8,6 +8,7 @@ import {
 } from '../../middleware/permission.middleware';
 import { AdminActions } from '../../types/roles';
 import { AppError } from '../../middleware/error.middleware';
+import { BranchService } from '../branch/branch.service';
 
 export class UserController {
   private userService: UserService;
@@ -62,6 +63,8 @@ export class UserController {
         (req.query.order as string) === 'asc' ? 'asc' : 'desc';
 
       const search = req.query.search as string;
+      const branchId = req.query.branchId as string;
+      const userIds = req.query.userIds as string;
 
       let filters: FilterQuery<IUser> = {};
       if (authUser.role === 'super-admin') {
@@ -80,6 +83,20 @@ export class UserController {
         };
       }
 
+      if (branchId) {
+        const branchService = new BranchService();
+        const branches = await branchService.getBranchWithChildren(branchId);
+        filters.branch = {
+          $in: branches.map((b) => b.id),
+        };
+      }
+
+      if (userIds) {
+        const ids = userIds.split('|');
+        filters._id = {
+          $in: ids,
+        };
+      }
       const user = await this.userService.getList({
         page,
         pageSize,
