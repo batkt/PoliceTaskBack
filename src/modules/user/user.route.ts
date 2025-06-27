@@ -25,7 +25,7 @@ router.get(
   userController.getList
 );
 
-router.get('/all', authenticate, userController.getAll);
+router.get('/getByIds', authenticate, userController.getUsersByIds);
 
 router.get('/profile', authenticate, userController.getProfile);
 

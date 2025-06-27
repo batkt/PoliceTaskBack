@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { TaskService } from './task.service';
-import { FilterQuery } from 'mongoose';
+import { FilterQuery, Types } from 'mongoose';
 import { ITask } from './task.model';
 import { AdminActions, UserActions } from '../../types/roles';
 import {
@@ -231,13 +231,27 @@ export class TaskController {
   ) => {
     try {
       const authUser = req.user!;
-      const page = parseInt(req.query.page as string) || 1;
-      const pageSize = parseInt(req.query.pageSize as string) || 10;
-      const sort = (req.query.sort as string) || 'createdAt';
-      const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
-      const formTemplateId = req.query.formTemplateId as string;
-      const status = req.query.status as string;
-      const search = req.query.search as string;
+      const {
+        page,
+        pageSize,
+        sort,
+        order,
+        formTemplateId,
+        status,
+        search,
+        assignee,
+        ...other
+      } = req.query;
+      const _page = parseInt(page as string) || 1;
+      const _pageSize = parseInt(pageSize as string) || 10;
+      const _sort = (sort as string) || 'createdAt';
+      const _order = (order as string) === 'asc' ? 'asc' : 'desc';
+      const _formTemplateId = formTemplateId as string;
+      const _status = status as string;
+      const _assignee = assignee as string;
+      const _search = search as string;
+
+      console.log(req.query);
 
       let filters: FilterQuery<ITask> = {};
 
@@ -251,20 +265,25 @@ export class TaskController {
         filters = { assignee: authUser.id };
       }
 
-      if (status && status !== 'all') {
-        filters.status = status;
+      if (_status && _status !== 'all') {
+        filters.status = _status;
+      }
+
+      if (_assignee) {
+        filters.assignee = new Types.ObjectId(_assignee);
       }
 
       const tasks = await this.taskService.getTasksWithFormSearch(
         {
-          page,
-          pageSize,
-          sortBy: sort,
-          sortDirection: order,
+          page: _page,
+          pageSize: _pageSize,
+          sortBy: _sort,
+          sortDirection: _order,
           filters,
         },
-        formTemplateId,
-        { search }
+        _formTemplateId,
+        { search: _search },
+        other
       );
 
       res.status(200).json({

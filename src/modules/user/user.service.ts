@@ -91,4 +91,17 @@ export class UserService {
 
     return users;
   };
+
+  getUsersByIds = async (ids: string[]) => {
+    const users = await UserModel.find({
+      _id: {
+        $in: ids,
+      },
+    })
+      .select('-password -__v -createdAt -updatedAt')
+      .populate('branch', '_id name isParent')
+      .lean();
+
+    return users;
+  };
 }

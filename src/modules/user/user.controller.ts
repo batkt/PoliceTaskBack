@@ -127,9 +127,11 @@ export class UserController {
     }
   };
 
-  getAll = async (req: Request, res: Response, next: NextFunction) => {
+  getUsersByIds = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const users = await this.userService.getAll();
+      const idsString = req.query.ids as string;
+      const ids = idsString.split(',');
+      const users = await this.userService.getUsersByIds(ids);
       res.send({
         code: 200,
         data: users,
