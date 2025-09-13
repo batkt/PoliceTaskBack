@@ -7,6 +7,8 @@ export enum SuperAdminActions {
 export enum AdminActions {
   CREATE_TASK = 'create-task',
   REGISTER_USER = 'register-user',
+  UPDATE_USER = 'update-user',
+  CHANGE_USER_PASSWORD = 'change-user-password',
   VIEW_TASKS = 'view-tasks',
   ASSIGN_TASK = 'assign-task',
   AUDIT_TASK = 'audit-task',

@@ -18,6 +18,18 @@ router.post(
   userController.register
 );
 
+router.post(
+  '/update',
+  authenticate,
+  userController.update
+);
+
+router.post(
+  '/changeUserPassword',
+  authenticate,
+  userController.changeUserPassword
+);
+
 router.get(
   '/list',
   authenticate,

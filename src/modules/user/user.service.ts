@@ -1,10 +1,10 @@
-import { FilterQuery } from 'mongoose';
-import { AppError } from '../../middleware/error.middleware';
-import { Pagination } from '../../types/pagination';
-import { hashPassword } from '../../utils/password.util';
-import { AuthUserType, CreateUserType } from '../user/user.types';
-import { IUser, UserModel } from './user.model';
-import { LoginHistory } from '../login-history/login-history.model';
+import { FilterQuery } from "mongoose";
+import { AppError } from "../../middleware/error.middleware";
+import { Pagination } from "../../types/pagination";
+import { hashPassword } from "../../utils/password.util";
+import { AuthUserType, CreateUserType } from "../user/user.types";
+import { IUser, UserModel } from "./user.model";
+import { LoginHistory } from "../login-history/login-history.model";
 
 export class UserService {
   register = async (user: AuthUserType, userData: CreateUserType) => {
@@ -16,7 +16,7 @@ export class UserService {
     if (existingUser) {
       throw new AppError(
         500,
-        'User register',
+        "User register",
         `${userData?.workerId} код бүртгэлтэй байна.`
       );
     }
@@ -38,11 +38,35 @@ export class UserService {
     return newUserData;
   };
 
+  update = async (user: AuthUserType, userData: Partial<CreateUserType>) => {
+    // Ajiltanii code burtgeltei esehig shalgah
+    const foundUser = await UserModel.findOne({
+      workerId: userData.workerId,
+    });
+
+    if (!foundUser) {
+      throw new AppError(500, "User update", `Хэрэглэгч олдсонгүй.`);
+    }
+
+    // Update user
+    await UserModel.updateOne(
+      {
+        workerId: userData.workerId,
+      },
+      {
+        ...userData,
+        branch: userData?.branchId,
+      }
+    );
+
+    return true;
+  };
+
   getList = async ({
     page = 1,
     pageSize = 10,
-    sortBy = '_id',
-    sortDirection = 'desc',
+    sortBy = "_id",
+    sortDirection = "desc",
     filters = {},
   }: Pagination & {
     filters?: FilterQuery<IUser>;
@@ -51,8 +75,8 @@ export class UserService {
     const skip = (page - 1) * pageSize;
 
     const users = await UserModel.find(filters)
-      .select('-password -__v -createdAt -updatedAt')
-      .populate('branch', '_id name isParent')
+      .select("-password -__v -createdAt -updatedAt")
+      .populate("branch", "_id name isParent")
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(pageSize);
@@ -69,8 +93,8 @@ export class UserService {
 
   getProfile = async (user: AuthUserType) => {
     const foundUser = await UserModel.findById(user.id)
-      .select('-password -__v -createdAt -updatedAt')
-      .populate('branch', '_id name isParent path')
+      .select("-password -__v -createdAt -updatedAt")
+      .populate("branch", "_id name isParent path")
       .lean();
 
     const lastLogin = await LoginHistory.findOne({
@@ -78,7 +102,7 @@ export class UserService {
       success: true,
     })
       .sort({ createdAt: -1 })
-      .select('-__v -reason')
+      .select("-__v -reason")
       .lean();
 
     return { ...foundUser, lastLogin };
@@ -86,8 +110,8 @@ export class UserService {
 
   getAll = async () => {
     const users = await UserModel.find()
-      .select('-password -__v -createdAt -updatedAt')
-      .populate('branch', '_id name isParent');
+      .select("-password -__v -createdAt -updatedAt")
+      .populate("branch", "_id name isParent");
 
     return users;
   };
@@ -98,10 +122,35 @@ export class UserService {
         $in: ids,
       },
     })
-      .select('-password -__v -createdAt -updatedAt')
-      .populate('branch', '_id name isParent')
+      .select("-password -__v -createdAt -updatedAt")
+      .populate("branch", "_id name isParent")
       .lean();
 
     return users;
+  };
+
+  changeUserPassword = async (
+    user: AuthUserType,
+    data: { userId: string; newPassword: string }
+  ) => {
+    const foundUser = await UserModel.findById(data.userId);
+
+    if (!foundUser) {
+      throw new AppError(500, "Change user password", `Хэрэглэгч олдсонгүй.`);
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(data.newPassword);
+
+    await UserModel.updateOne(
+      {
+        _id: data.userId,
+      },
+      {
+        password: hashedPassword,
+      }
+    ).exec();
+
+    return true;
   };
 }

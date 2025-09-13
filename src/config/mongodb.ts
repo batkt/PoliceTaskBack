@@ -32,15 +32,14 @@ export async function connectDB() {
 const createInitialData = async () => {
   const authService = new AuthService();
 
+  if (!ADMIN_WORKER_ID || !ADMIN_PASSWORD) {
+    throw new Error('ADMIN_WORKER_ID or ADMIN_PASSWORD is not configured');
+  }
   const adminUser = await UserModel.findOne({
-    workerId: '1234567',
+    workerId: ADMIN_WORKER_ID,
   });
 
   if (!adminUser) {
-    if (!ADMIN_WORKER_ID || !ADMIN_PASSWORD) {
-      throw new Error('ADMIN_WORKER_ID or ADMIN_PASSWORD is not configured');
-    }
-
     let branchId = null;
     const branchName = 'Тээврийн цагдаагийн алба';
     const parentBranch = await BranchModel.findOne({
