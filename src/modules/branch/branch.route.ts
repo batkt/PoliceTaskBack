@@ -15,6 +15,12 @@ router.post(
   branchController.createBranch
 );
 
+router.post(
+  '/update',
+  authenticate,
+  branchController.updateBranch
+);
+
 router.get('/', authenticate, branchController.getAll);
 router.get('/getOwnBranches', authenticate, branchController.getChildren);
 

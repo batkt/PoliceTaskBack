@@ -1,8 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
-import { BranchService } from './branch.service';
-import { AdminActions, SuperAdminActions } from '../../types/roles';
-import { canAccess } from '../../middleware/permission.middleware';
-import { AppError } from '../../middleware/error.middleware';
+import { NextFunction, Request, Response } from "express";
+import { BranchService } from "./branch.service";
+import { AdminActions, SuperAdminActions } from "../../types/roles";
+import { canAccess } from "../../middleware/permission.middleware";
+import { AppError } from "../../middleware/error.middleware";
 
 export class BranchController {
   private branchService: BranchService;
@@ -18,8 +18,8 @@ export class BranchController {
       if (!canAccess(authUser, SuperAdminActions.CREATE_BRANCH)) {
         throw new AppError(
           403,
-          'Create branch',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Create branch",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
 
@@ -27,6 +27,26 @@ export class BranchController {
       res.status(201).json({
         code: 200,
         data: branch,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateBranch = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+      if (!canAccess(authUser, AdminActions.UPDATE_USER)) {
+        throw new AppError(
+          403,
+          "Update branch",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+      const result = await this.branchService.updateBranch(authUser, req.body);
+      res.status(200).json({
+        code: 200,
+        data: result,
       });
     } catch (error) {
       next(error);

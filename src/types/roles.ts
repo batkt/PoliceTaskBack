@@ -2,6 +2,7 @@ export type Role = 'super-admin' | 'admin' | 'user';
 
 export enum SuperAdminActions {
   CREATE_BRANCH = 'create-branch',
+  UPDATE_BRANCH = 'update-branch',
 }
 
 export enum AdminActions {
