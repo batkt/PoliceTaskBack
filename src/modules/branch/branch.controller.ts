@@ -79,4 +79,26 @@ export class BranchController {
       next(error);
     }
   };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+
+      if (!canAccess(authUser, SuperAdminActions.DELETE_BRANCH)) {
+        throw new AppError(
+          403,
+          "Delete branch",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+
+      const result = await this.branchService.delete(req.params.id);
+      res.status(200).json({
+        code: 200,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

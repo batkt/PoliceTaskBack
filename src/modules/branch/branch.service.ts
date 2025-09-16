@@ -11,6 +11,7 @@ export class BranchService {
     const existingBranch = await BranchModel.findOne({
       name,
       parent: parentId || null,
+      deleted: { $ne: true },
     });
 
     if (existingBranch) {
@@ -83,18 +84,46 @@ export class BranchService {
   }
 
   async getBranchWithChildren(id: string): Promise<IBranch[]> {
-    const branch = await BranchModel.findById(id);
+    const branch = await BranchModel.findOne({
+      _id: id,
+      deleted: { $ne: true },
+    });
     if (!branch) throw new Error("Branch not found");
 
     const path = branch.isParent ? branch.id : `${branch.path}/${branch.id}`;
     const children = await BranchModel.find({
       path: { $regex: `^${path}` },
+      deleted: { $ne: true },
     });
 
     return [branch, ...children];
   }
 
   async getAll(): Promise<IBranch[]> {
-    return BranchModel.find();
+    return BranchModel.find({
+      deleted: { $ne: true },
+    });
+  }
+
+  async delete(id: string) {
+    const branch = await BranchModel.findOne({
+      _id: id,
+      deleted: { $ne: true },
+    });
+
+    if (!branch) {
+      throw new AppError(500, "Delete branch", `Салбар олдсонгүй.`);
+    }
+
+    await BranchModel.updateOne(
+      {
+        _id: id,
+      },
+      {
+        deleted: true,
+      }
+    ).exec();
+
+    return true;
   }
 }

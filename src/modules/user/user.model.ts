@@ -14,11 +14,12 @@ export interface IUser extends Document {
   profileImageUrl?: string;
   profileImage?: Types.ObjectId;
   createdBy?: Types.ObjectId; // Хэн үүсгэсэн
+  deleted?: boolean;
 }
 
 const userSchema = new Schema<IUser>(
   {
-    workerId: { type: String, required: true, unique: true },
+    workerId: { type: String, required: true },
     surname: { type: String, required: true },
     givenname: { type: String, required: true },
     position: { type: String, required: true },
@@ -34,6 +35,7 @@ const userSchema = new Schema<IUser>(
     },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Хэн үүсгэсэн
     joinedDate: { type: Date },
+    deleted: { type: Boolean, default: false },
   },
   {
     timestamps: true, // createdAt, updatedAt auto

@@ -3,6 +3,7 @@ export type Role = 'super-admin' | 'admin' | 'user';
 export enum SuperAdminActions {
   CREATE_BRANCH = 'create-branch',
   UPDATE_BRANCH = 'update-branch',
+  DELETE_BRANCH = 'delete-branch',
 }
 
 export enum AdminActions {
@@ -16,6 +17,7 @@ export enum AdminActions {
   EVALUATE_TASK = 'evaluate-task',
   ATTACH_FILE_TASK = 'attach-file-task',
   NOTE_TASK = 'note-task',
+  DELETE_USER = 'delete-user',
 }
 
 export enum UserActions {

@@ -11,6 +11,7 @@ export class UserService {
     // Ajiltanii code burtgeltei esehig shalgah
     const existingUser = await UserModel.findOne({
       workerId: userData.workerId,
+      deleted: { $ne: true },
     });
 
     if (existingUser) {
@@ -109,7 +110,9 @@ export class UserService {
   };
 
   getAll = async () => {
-    const users = await UserModel.find()
+    const users = await UserModel.find({
+      deleted: { $ne: true },
+    })
       .select("-password -__v -createdAt -updatedAt")
       .populate("branch", "_id name isParent");
 
@@ -151,6 +154,24 @@ export class UserService {
       }
     ).exec();
 
+    return true;
+  };
+
+  delete = async (userId: string) => {
+    const foundUser = await UserModel.findById(userId);
+
+    if (!foundUser) {
+      throw new AppError(500, "Delete user", `Хэрэглэгч олдсонгүй.`);
+    }
+
+    await UserModel.updateOne(
+      {
+        _id: userId,
+      },
+      {
+        deleted: true,
+      }
+    ).exec();
     return true;
   };
 }

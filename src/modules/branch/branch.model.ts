@@ -6,6 +6,7 @@ export interface IBranch extends Document {
   parent?: Types.ObjectId | null;
   path: string;
   createdBy?: Types.ObjectId; // хэн үүсгэсэн
+  deleted?: boolean;
 }
 
 const branchSchema = new Schema<IBranch>(
@@ -15,6 +16,7 @@ const branchSchema = new Schema<IBranch>(
     isParent: { type: Boolean, default: false }, // эцэг салбар эсэх
     path: { type: String },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // хэн үүсгэсэн
+    deleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

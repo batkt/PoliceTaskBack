@@ -103,7 +103,10 @@ export class UserController {
         );
       }
 
-      const user = await this.userService.changeUserPassword(authUser, req.body);
+      const user = await this.userService.changeUserPassword(
+        authUser,
+        req.body
+      );
       res.status(201).json({
         code: 200,
         data: user,
@@ -157,6 +160,8 @@ export class UserController {
           $in: ids,
         };
       }
+
+      filters.deleted = { $ne: true };
       const user = await this.userService.getList({
         page,
         pageSize,
@@ -195,6 +200,26 @@ export class UserController {
       res.send({
         code: 200,
         data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+      if (!canAccess(authUser, AdminActions.DELETE_USER)) {
+        throw new AppError(
+          403,
+          "Delete user",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+      const result = await this.userService.delete(req.params.id);
+      res.status(200).json({
+        code: 200,
+        data: result,
       });
     } catch (error) {
       next(error);

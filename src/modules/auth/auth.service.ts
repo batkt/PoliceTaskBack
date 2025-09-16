@@ -23,6 +23,7 @@ export class AuthService {
     // Find user
     const user = await UserModel.findOne({
       workerId: { $regex: `^${workerId}$`, $options: 'i' },
+      deleted: { $ne: true },
     })
       .select('-__v -createdAt -updatedAt')
       .populate('branch', '_id name isParent path');
