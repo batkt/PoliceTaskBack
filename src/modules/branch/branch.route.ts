@@ -23,6 +23,6 @@ router.post(
 
 router.get('/', authenticate, branchController.getAll);
 router.get('/getOwnBranches', authenticate, branchController.getChildren);
-router.get('/delete/:id', authenticate, branchController.delete);
+router.post('/delete/:id', authenticate, branchController.delete);
 
 export { router as branchRouter };
