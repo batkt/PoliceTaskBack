@@ -259,7 +259,8 @@ export class TaskController {
         filters = {}; // unrestricted
       } else if (authUser.role === 'admin') {
         const branches = await getAccessibleBranches(authUser);
-        filters = { branchId: { $in: branches } };
+        const branchObjectIds = branches.map(id => new Types.ObjectId(id));
+        filters = { branchId: { $in: branchObjectIds } };
       } else {
         // user өөрийн даалгавар л үзнэ
         filters = { assignee: authUser.id };

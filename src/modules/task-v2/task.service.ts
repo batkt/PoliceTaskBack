@@ -1,32 +1,32 @@
-import { FilterQuery, ProjectionFields, startSession, Types } from 'mongoose';
-import { AppError } from '../../middleware/error.middleware';
-import { Pagination } from '../../types/pagination';
-import { AuditModel } from '../audit/audit.model';
-import { AuditResult, IAuditInput } from '../audit/audit.types';
-import { EvaluationModel } from '../evaluation/evaluation.model';
-import { IEvaluationInput } from '../evaluation/evaluation.types';
-import { FileModel } from '../file/file.model';
-import { NoteModel } from '../note/note.model';
-import { INoteInput } from '../note/note.types';
-import { NotificationService } from '../notification/notification.service';
-import { NotificationType } from '../notification/notification.types';
-import { IUser, UserModel } from '../user/user.model';
-import { AuthUserType } from '../user/user.types';
-import { ITask, TaskFormDataModel, TaskModel } from './task.model';
-import { ICreateTaskInput, TaskStatus } from './task.types';
+import { FilterQuery, ProjectionFields, startSession, Types } from "mongoose";
+import { AppError } from "../../middleware/error.middleware";
+import { Pagination } from "../../types/pagination";
+import { AuditModel } from "../audit/audit.model";
+import { AuditResult, IAuditInput } from "../audit/audit.types";
+import { EvaluationModel } from "../evaluation/evaluation.model";
+import { IEvaluationInput } from "../evaluation/evaluation.types";
+import { FileModel } from "../file/file.model";
+import { NoteModel } from "../note/note.model";
+import { INoteInput } from "../note/note.types";
+import { NotificationService } from "../notification/notification.service";
+import { NotificationType } from "../notification/notification.types";
+import { IUser, UserModel } from "../user/user.model";
+import { AuthUserType } from "../user/user.types";
+import { ITask, TaskFormDataModel, TaskModel } from "./task.model";
+import { ICreateTaskInput, TaskStatus } from "./task.types";
 import {
   changeCountStatus,
   increaseCountNewTask,
-} from '../../utils/redis.util';
-import { SocketService } from '../socket/socket.service';
-import { FormTemplateModel } from '../form/form.model';
-import { FieldTypes } from '../form/form.types';
+} from "../../utils/redis.util";
+import { SocketService } from "../socket/socket.service";
+import { FormTemplateModel } from "../form/form.model";
+import { FieldTypes } from "../form/form.types";
 import {
   generateActivityMessage,
   logTaskActivity,
-} from '../activity/activity.service';
-import { getAccessibleBranches } from '../../middleware/permission.middleware';
-import { getRankWithName } from '../../utils/user.util';
+} from "../activity/activity.service";
+import { getAccessibleBranches } from "../../middleware/permission.middleware";
+import { getRankWithName } from "../../utils/user.util";
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -42,15 +42,15 @@ export class TaskService {
     user: IUser
   ): Promise<ITask> {
     // startDate < now
-    let status = 'pending';
+    let status = "pending";
     const startDate = new Date(input.startDate);
     const now = new Date();
     if (startDate < now) {
-      status = 'active';
+      status = "active";
     }
 
     const task = await TaskModel.create({
-      priority: input.priority || 'medium',
+      priority: input.priority || "medium",
       ...input,
       createdBy: user.id,
       status: status,
@@ -77,13 +77,13 @@ export class TaskService {
     try {
       const user = await UserModel.findById(authUser.id);
       if (!user) {
-        throw new AppError(404, 'Create Task', 'Хэрэглэгч олдсонгүй');
+        throw new AppError(404, "Create Task", "Хэрэглэгч олдсонгүй");
       }
 
       const assignUser = await UserModel.findById(taskInput.assignee);
 
       if (!assignUser) {
-        throw new AppError(400, 'Create Task', 'Хүлээн авагч олдсонгүй.');
+        throw new AppError(400, "Create Task", "Хүлээн авагч олдсонгүй.");
       }
 
       const { formTemplateId, assignee } = taskInput;
@@ -103,24 +103,24 @@ export class TaskService {
       await logTaskActivity(
         task.id,
         user.id,
-        'created',
-        generateActivityMessage('created')
+        "created",
+        generateActivityMessage("created")
       );
 
       await logTaskActivity(
         task.id,
         authUser.id,
-        'assigned',
-        generateActivityMessage('assigned', getRankWithName(assignUser))
+        "assigned",
+        generateActivityMessage("assigned", getRankWithName(assignUser))
       );
 
       await logTaskActivity(
         task.id,
         user.id,
-        'status-changed',
+        "status-changed",
         generateActivityMessage(
-          'status-changed',
-          task.status === 'active' ? 'Идэвхитэй' : 'Хүлээгдэж байгаа'
+          "status-changed",
+          task.status === "active" ? "Идэвхитэй" : "Хүлээгдэж байгаа"
         )
       );
 
@@ -131,7 +131,7 @@ export class TaskService {
 
       if (assignee !== authUser.id) {
         await this.notificationService.createNotification({
-          title: 'Шинэ даалгавар',
+          title: "Шинэ даалгавар",
           type: NotificationType.TASK,
           message: `${user?.rank} ${user.givenname} танд "${task.title}" даалгаврыг хуваариллаа.`,
           userId: assignee,
@@ -155,14 +155,14 @@ export class TaskService {
   ) {
     const task = await TaskModel.findById(taskId);
     if (!task) {
-      throw new AppError(404, 'Add File To Task', 'Даалгавар олдсонгүй');
+      throw new AppError(404, "Add File To Task", "Даалгавар олдсонгүй");
     }
 
-    if (authUser.role === 'user' && task.assignee.toString() !== authUser.id) {
+    if (authUser.role === "user" && task.assignee.toString() !== authUser.id) {
       throw new AppError(
         403,
-        'Attach file',
-        'Та энэ үйлдлийг хийх эрхгүй байна.'
+        "Attach file",
+        "Та энэ үйлдлийг хийх эрхгүй байна."
       );
     }
 
@@ -183,8 +183,8 @@ export class TaskService {
     await logTaskActivity(
       task.id,
       authUser.id,
-      'file-attached',
-      generateActivityMessage('file-attached')
+      "file-attached",
+      generateActivityMessage("file-attached")
     );
 
     const recipients = [
@@ -194,7 +194,7 @@ export class TaskService {
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
-        title: 'Файл нэмэгдлээ',
+        title: "Файл нэмэгдлээ",
         type: NotificationType.TASK,
         message: `"${task.title}" даалгаварт файл хавсаргасан`,
         userId,
@@ -205,7 +205,7 @@ export class TaskService {
     const files = await FileModel.find({
       task: taskId,
     })
-      .select('-__v')
+      .select("-__v")
       .lean();
 
     return files;
@@ -218,7 +218,7 @@ export class TaskService {
   ) => {
     const task = await TaskModel.findById(taskId);
     if (!task) {
-      throw new AppError(404, 'Add File To Task', 'Даалгавар олдсонгүй');
+      throw new AppError(404, "Add File To Task", "Даалгавар олдсонгүй");
     }
 
     const updated = await FileModel.updateMany(
@@ -238,14 +238,14 @@ export class TaskService {
     await logTaskActivity(
       task.id,
       authUser.id,
-      'file-deleted',
-      generateActivityMessage('file-deleted')
+      "file-deleted",
+      generateActivityMessage("file-deleted")
     );
 
     const files = await FileModel.find({
       task: taskId,
     })
-      .select('-__v')
+      .select("-__v")
       .lean();
 
     return files;
@@ -254,21 +254,21 @@ export class TaskService {
   async startTask(taskId: string, authUser: AuthUserType) {
     const user = await UserModel.findById(authUser.id);
     if (!user) {
-      throw new AppError(404, 'StartTask', 'Хэрэглэгч олдсонгүй');
+      throw new AppError(404, "StartTask", "Хэрэглэгч олдсонгүй");
     }
     const task = await TaskModel.findById(taskId);
-    if (!task) throw new AppError(404, 'StartTask', 'Даалгавар олдсонгүй');
+    if (!task) throw new AppError(404, "StartTask", "Даалгавар олдсонгүй");
     if (task.assignee.toString() !== user.id)
       throw new AppError(
         403,
-        'StartTask',
-        'Та энэ даалгаварт хуваарилагдаагүй байна'
+        "StartTask",
+        "Та энэ даалгаварт хуваарилагдаагүй байна"
       );
     if (![TaskStatus.PENDING, TaskStatus.ACTIVE].includes(task.status))
       throw new AppError(
         400,
-        'CompleteTask',
-        'Тус даалгаварыг эхлүүлэх боломжгүй төлөвт байна.'
+        "CompleteTask",
+        "Тус даалгаварыг эхлүүлэх боломжгүй төлөвт байна."
       );
 
     const currentStatus = task.status;
@@ -281,8 +281,8 @@ export class TaskService {
     await logTaskActivity(
       task.id,
       authUser.id,
-      'status-changed',
-      generateActivityMessage('status-changed', 'Хийгдэж байгаа')
+      "status-changed",
+      generateActivityMessage("status-changed", "Хийгдэж байгаа")
     );
 
     const recipients = [
@@ -292,7 +292,7 @@ export class TaskService {
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
-        title: 'Даалгавар эхэлсэн',
+        title: "Даалгавар эхэлсэн",
         type: NotificationType.TASK,
         message: `${user?.rank} ${user.givenname} "${task.title}" даалгаврыг эхлүүлсэн`,
         userId,
@@ -306,28 +306,28 @@ export class TaskService {
   async completeTask(taskId: string, authUser: AuthUserType) {
     const user = await UserModel.findById(authUser.id);
     if (!user) {
-      throw new AppError(404, 'CompleteTask', 'Хэрэглэгч олдсонгүй');
+      throw new AppError(404, "CompleteTask", "Хэрэглэгч олдсонгүй");
     }
     const task = await TaskModel.findById(taskId);
-    if (!task) throw new AppError(404, 'CompleteTask', 'Даалгавар олдсонгүй');
+    if (!task) throw new AppError(404, "CompleteTask", "Даалгавар олдсонгүй");
     if (task.assignee.toString() !== user.id)
       throw new AppError(
         403,
-        'CompleteTask',
-        'Та энэ даалгаварт хуваарилагдаагүй байна'
+        "CompleteTask",
+        "Та энэ даалгаварт хуваарилагдаагүй байна"
       );
     if (task.status !== TaskStatus.IN_PROGRESS)
       throw new AppError(
         400,
-        'CompleteTask',
-        'Тус даалгавар дуусгах боломжгүй төлөвт байна.'
+        "CompleteTask",
+        "Тус даалгавар дуусгах боломжгүй төлөвт байна."
       );
 
     await logTaskActivity(
       task.id,
       user.id,
-      'status-changed',
-      generateActivityMessage('status-changed', 'Дууссан')
+      "status-changed",
+      generateActivityMessage("status-changed", "Дууссан")
     );
 
     const currentStatus = task.status;
@@ -344,7 +344,7 @@ export class TaskService {
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
-        title: 'Даалгавар дууссан',
+        title: "Даалгавар дууссан",
         type: NotificationType.TASK,
         message: `${user?.rank} ${user.givenname} "${task.title}" даалгаврыг дуусгасан`,
         userId,
@@ -358,16 +358,16 @@ export class TaskService {
   async addNote(input: INoteInput, authUser: AuthUserType) {
     const task = await TaskModel.findById(input.taskId);
     if (!task) {
-      throw new AppError(404, 'Add note', 'Даалгавар олдсонгүй');
+      throw new AppError(404, "Add note", "Даалгавар олдсонгүй");
     }
 
     const branches = await getAccessibleBranches(authUser);
-    if (!branches.includes('*')) {
+    if (!branches.includes("*")) {
       if (!branches.includes(task.branchId.toString())) {
         throw new AppError(
           403,
-          'Add note',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Add note",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
     }
@@ -375,8 +375,8 @@ export class TaskService {
     if ([TaskStatus.COMPLETED, TaskStatus.REVIEWED].includes(task.status)) {
       throw new AppError(
         400,
-        'AddNote',
-        'Дууссан эсвэл хянагдсан даалгаварт тэмдэглэл нэмэх боломжгүй'
+        "AddNote",
+        "Дууссан эсвэл хянагдсан даалгаварт тэмдэглэл нэмэх боломжгүй"
       );
     }
     const note = await NoteModel.create({
@@ -388,8 +388,8 @@ export class TaskService {
     await logTaskActivity(
       task.id,
       authUser.id,
-      'commented',
-      generateActivityMessage('commented')
+      "commented",
+      generateActivityMessage("commented")
     );
 
     const recipients = [
@@ -399,7 +399,7 @@ export class TaskService {
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
-        title: 'Тэмдэглэл нэмэгдлээ',
+        title: "Тэмдэглэл нэмэгдлээ",
         type: NotificationType.TASK,
         message: `Даалгаварт шинэ тэмдэглэл нэмэгдсэн`,
         userId,
@@ -408,8 +408,8 @@ export class TaskService {
     }
 
     const newNote = await NoteModel.findById(note._id).populate(
-      'createdBy',
-      '_id givenname surname profileImageUrl rank position'
+      "createdBy",
+      "_id givenname surname profileImageUrl rank position"
     );
 
     return newNote;
@@ -420,8 +420,8 @@ export class TaskService {
     if (!task || task.status !== TaskStatus.COMPLETED) {
       throw new AppError(
         400,
-        'AuditTask',
-        'Даалгавар дууссан төлөвтэй байх ёстой'
+        "AuditTask",
+        "Даалгавар дууссан төлөвтэй байх ёстой"
       );
     }
 
@@ -443,15 +443,15 @@ export class TaskService {
     await logTaskActivity(
       input.taskId,
       authUser.id,
-      'audited',
+      "audited",
       generateActivityMessage(
-        'audited',
-        input.result === 'approved'
-          ? 'зөвшөөрсөн'
+        "audited",
+        input.result === "approved"
+          ? "зөвшөөрсөн"
           : `${
               input?.comments
                 ? `"${input.comments}" шалтгааны улмаас татгалзсан`
-                : 'татгалзсан'
+                : "татгалзсан"
             }`
       )
     );
@@ -466,10 +466,10 @@ export class TaskService {
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
-        title: 'Даалгавар хянагдсан',
+        title: "Даалгавар хянагдсан",
         type: NotificationType.TASK,
         message: `Таны даалгавар ${
-          input.result === AuditResult.APPROVED ? 'зөвшөөрөгдсөн' : 'буцаагдсан'
+          input.result === AuditResult.APPROVED ? "зөвшөөрөгдсөн" : "буцаагдсан"
         }`,
         userId,
         taskId: task.id,
@@ -481,11 +481,11 @@ export class TaskService {
 
   async evaluateTask(input: IEvaluationInput, authUser: AuthUserType) {
     const task = await TaskModel.findById(input.taskId);
-    if (!task || task.status !== 'reviewed') {
+    if (!task || task.status !== "reviewed") {
       throw new AppError(
         400,
-        'EvaluateTask',
-        'Даалгавар хянагдсан төлөвтэй байх ёстой'
+        "EvaluateTask",
+        "Даалгавар хянагдсан төлөвтэй байх ёстой"
       );
     }
     const evaluation = await EvaluationModel.create({
@@ -500,7 +500,7 @@ export class TaskService {
 
     for (const userId of recipients) {
       await this.notificationService.createNotification({
-        title: 'Даалгавар үнэлэгдсэн',
+        title: "Даалгавар үнэлэгдсэн",
         type: NotificationType.TASK,
         message: `Таны даалгаврыг үнэллээ: ${input.score} оноо`,
         userId: userId.toString(),
@@ -520,19 +520,19 @@ export class TaskService {
   ) {
     const task = await TaskModel.findById(data.taskId);
     if (!task) {
-      throw new AppError(400, 'Assign task', 'Даалгавар олдсонгүй.');
+      throw new AppError(400, "Assign task", "Даалгавар олдсонгүй.");
     }
 
     const user = await UserModel.findById(authUser.id);
 
     if (!user) {
-      throw new AppError(400, 'Assign task', 'Хэрэглэгч олдсонгүй.');
+      throw new AppError(400, "Assign task", "Хэрэглэгч олдсонгүй.");
     }
 
     const assignUser = await UserModel.findById(data.assignTo);
 
     if (!assignUser) {
-      throw new AppError(400, 'Assign task', 'Хүлээн авагч олдсонгүй.');
+      throw new AppError(400, "Assign task", "Хүлээн авагч олдсонгүй.");
     }
 
     task.assignee = new Types.ObjectId(data.assignTo);
@@ -541,12 +541,12 @@ export class TaskService {
     await logTaskActivity(
       task.id,
       authUser.id,
-      'assigned',
-      generateActivityMessage('assigned', getRankWithName(assignUser))
+      "assigned",
+      generateActivityMessage("assigned", getRankWithName(assignUser))
     );
 
     await this.notificationService.createNotification({
-      title: 'Шинэ даалгавар',
+      title: "Шинэ даалгавар",
       type: NotificationType.TASK,
       message: `${user?.rank} ${user.givenname} танд "${task.title}" даалгаврыг хуваариллаа.`,
       userId: data.assignTo,
@@ -563,66 +563,66 @@ export class TaskService {
       },
       {
         $lookup: {
-          from: 'taskformdatas',
-          localField: '_id',
-          foreignField: 'taskId',
-          as: 'formData',
+          from: "taskformdatas",
+          localField: "_id",
+          foreignField: "taskId",
+          as: "formData",
         },
       },
       {
         $lookup: {
-          from: 'formtemplates',
+          from: "formtemplates",
           let: {
-            formTemplateId: { $arrayElemAt: ['$formData.formTemplateId', 0] },
+            formTemplateId: { $arrayElemAt: ["$formData.formTemplateId", 0] },
           },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$_id', '$$formTemplateId'] },
+                $expr: { $eq: ["$_id", "$$formTemplateId"] },
               },
             },
           ],
-          as: 'formTemplate',
+          as: "formTemplate",
         },
       },
       {
         $lookup: {
-          from: 'users',
-          localField: 'assignee',
-          foreignField: '_id',
-          as: 'assignee',
+          from: "users",
+          localField: "assignee",
+          foreignField: "_id",
+          as: "assignee",
         },
       },
       {
         $lookup: {
-          from: 'users',
-          localField: 'createdBy',
-          foreignField: '_id',
-          as: 'createdBy',
+          from: "users",
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "createdBy",
         },
       },
       {
         $lookup: {
-          from: 'files',
-          localField: '_id',
-          foreignField: 'task',
-          as: 'files',
+          from: "files",
+          localField: "_id",
+          foreignField: "task",
+          as: "files",
         },
       },
       {
         $lookup: {
-          from: 'evaluations',
-          localField: '_id',
-          foreignField: 'task',
-          as: 'evaluations',
+          from: "evaluations",
+          localField: "_id",
+          foreignField: "task",
+          as: "evaluations",
         },
       },
       {
         $addFields: {
-          formTemplate: { $arrayElemAt: ['$formTemplate', 0] },
-          assignee: { $arrayElemAt: ['$assignee', 0] },
-          createdBy: { $arrayElemAt: ['$createdBy', 0] },
-          formData: { $arrayElemAt: ['$formData', 0] },
+          formTemplate: { $arrayElemAt: ["$formTemplate", 0] },
+          assignee: { $arrayElemAt: ["$assignee", 0] },
+          createdBy: { $arrayElemAt: ["$createdBy", 0] },
+          formData: { $arrayElemAt: ["$formData", 0] },
         },
       },
       {
@@ -631,24 +631,24 @@ export class TaskService {
             $map: {
               input: {
                 $filter: {
-                  input: '$formData.fields',
-                  as: 'f',
-                  cond: { $ne: ['$$f.value', null] },
+                  input: "$formData.fields",
+                  as: "f",
+                  cond: { $ne: ["$$f.value", null] },
                 },
               },
-              as: 'f',
+              as: "f",
               in: {
                 $let: {
                   vars: {
                     labelObj: {
                       $first: {
                         $filter: {
-                          input: '$formTemplate.fields',
-                          as: 'templateField',
+                          input: "$formTemplate.fields",
+                          as: "templateField",
                           cond: {
                             $eq: [
-                              { $toLower: '$$templateField.name' },
-                              { $toLower: '$$f.key' },
+                              { $toLower: "$$templateField.name" },
+                              { $toLower: "$$f.key" },
                             ],
                           },
                         },
@@ -658,17 +658,17 @@ export class TaskService {
                   in: {
                     label: {
                       $cond: {
-                        if: { $gt: ['$$labelObj', null] },
-                        then: '$$labelObj.label',
-                        else: '$$f.key',
+                        if: { $gt: ["$$labelObj", null] },
+                        then: "$$labelObj.label",
+                        else: "$$f.key",
                       },
                     },
-                    value: '$$f.value',
+                    value: "$$f.value",
                     type: {
                       $cond: {
-                        if: { $gt: ['$$labelObj', null] },
-                        then: '$$labelObj.type',
-                        else: 'text',
+                        if: { $gt: ["$$labelObj", null] },
+                        then: "$$labelObj.type",
+                        else: "text",
                       },
                     },
                   },
@@ -682,21 +682,21 @@ export class TaskService {
         $project: {
           formData: 0,
           formTemplate: 0,
-          'assignee.password': 0,
-          'assignee.updateAt': 0,
-          'assignee.__v': 0,
-          'assignee.role': 0,
-          'createdBy.password': 0,
-          'createdBy.updatedAt': 0,
-          'createdBy.__v': 0,
-          'createdBy.role': 0,
+          "assignee.password": 0,
+          "assignee.updateAt": 0,
+          "assignee.__v": 0,
+          "assignee.role": 0,
+          "createdBy.password": 0,
+          "createdBy.updatedAt": 0,
+          "createdBy.__v": 0,
+          "createdBy.role": 0,
           __v: 0,
           updatedAt: 0,
         },
       },
     ]);
     if (!task || task?.length < 1)
-      throw new AppError(404, 'TaskDetail', 'Даалгавар олдсонгүй');
+      throw new AppError(404, "TaskDetail", "Даалгавар олдсонгүй");
     return task[0];
   }
 
@@ -704,8 +704,8 @@ export class TaskService {
     {
       page = 1,
       pageSize = 10,
-      sortBy = 'createdAt',
-      sortDirection = 'desc',
+      sortBy = "createdAt",
+      sortDirection = "desc",
       filters = {},
     }: Pagination & { filters: FilterQuery<ITask> },
     formTemplateId: string,
@@ -717,7 +717,7 @@ export class TaskService {
 
     const template = await FormTemplateModel.findById(formTemplateId);
     if (!template) {
-      throw new AppError(404, 'task list', 'Төрлийн мэдээлэл олдсонгүй');
+      throw new AppError(404, "task list", "Төрлийн мэдээлэл олдсонгүй");
     }
 
     const showFields = template.fields.filter((f) => f.showInTable === true);
@@ -733,12 +733,12 @@ export class TaskService {
       if (searchTextFields?.length > 0) {
         const regexOrConditions: any = searchTextFields.map((name) => {
           return {
-            'formData.fields': {
+            "formData.fields": {
               $elemMatch: {
                 key: name,
                 value: {
                   $regex: search,
-                  $options: 'i',
+                  $options: "i",
                 },
               },
             },
@@ -747,14 +747,10 @@ export class TaskService {
         regexOrConditions.push({
           title: {
             $regex: search,
-            $options: 'i',
+            $options: "i",
           },
         });
         matchFilters.push({ $or: regexOrConditions });
-      } else {
-        rootMatchQuery.$text = {
-          $search: '324',
-        };
       }
     }
 
@@ -763,7 +759,7 @@ export class TaskService {
       queryKeys.map((key) => {
         if (query[key]) {
           matchFilters.push({
-            'formData.fields': {
+            "formData.fields": {
               $elemMatch: {
                 key: key,
                 value: query[key],
@@ -774,7 +770,7 @@ export class TaskService {
       });
     }
 
-    const sortNumber = sortDirection === 'asc' ? 1 : -1;
+    const sortNumber = sortDirection === "asc" ? 1 : -1;
 
     let project: ProjectionFields<ITask> = {
       title: 1,
@@ -804,18 +800,20 @@ export class TaskService {
             $map: {
               input: {
                 $filter: {
-                  input: { $arrayElemAt: ['$formData.fields', 0] },
-                  as: 'f',
-                  cond: { $in: ['$$f.key', showKeys] },
+                  input: { $arrayElemAt: ["$formData.fields", 0] },
+                  as: "f",
+                  cond: { $in: ["$$f.key", showKeys] },
                 },
               },
-              as: 'f',
-              in: ['$$f.key', '$$f.value'],
+              as: "f",
+              in: ["$$f.key", "$$f.value"],
             },
           },
         },
       };
     }
+
+    console.log(rootMatchQuery, " matchFilters");
 
     const data = await TaskModel.aggregate([
       {
@@ -826,36 +824,36 @@ export class TaskService {
       },
       {
         $lookup: {
-          from: 'taskformdatas',
-          localField: '_id',
-          foreignField: 'taskId',
-          as: 'formData',
+          from: "taskformdatas",
+          localField: "_id",
+          foreignField: "taskId",
+          as: "formData",
         },
       },
       {
         $lookup: {
-          from: 'users',
-          localField: 'assignee',
-          foreignField: '_id',
-          as: 'assignee',
+          from: "users",
+          localField: "assignee",
+          foreignField: "_id",
+          as: "assignee",
         },
       },
       {
         $lookup: {
-          from: 'users',
-          localField: 'createdBy',
-          foreignField: '_id',
-          as: 'createdBy',
+          from: "users",
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "createdBy",
         },
       },
       {
         $unwind: {
-          path: '$assignee',
+          path: "$assignee",
         },
       },
       {
         $unwind: {
-          path: '$createdBy',
+          path: "$createdBy",
         },
       },
       ...(matchFilters.length > 0 ? [{ $match: { $and: matchFilters } }] : []),
@@ -878,23 +876,23 @@ export class TaskService {
   getUserTasks = async ({
     page = 1,
     pageSize = 10,
-    sortBy = 'createdAt',
-    sortDirection = 'desc',
+    sortBy = "createdAt",
+    sortDirection = "desc",
     filters = {},
   }: Pagination & { filters: FilterQuery<ITask> }) => {
     const skip = (page - 1) * pageSize;
 
     const tasks = await TaskModel.find(filters)
-      .select('-__v -createdAt -updatedAt')
+      .select("-__v -createdAt -updatedAt")
       .populate(
-        'assignee',
-        '_id givenname surname position rank profileImageUrl'
+        "assignee",
+        "_id givenname surname position rank profileImageUrl"
       )
       .populate(
-        'createdBy',
-        '_id givenname surname position rank profileImageUrl'
+        "createdBy",
+        "_id givenname surname position rank profileImageUrl"
       )
-      .populate('formTemplateId', '_id name')
+      .populate("formTemplateId", "_id name")
       .sort({ [sortBy]: sortDirection })
       .skip(skip)
       .limit(pageSize);
