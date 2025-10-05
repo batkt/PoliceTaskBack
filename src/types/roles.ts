@@ -18,6 +18,7 @@ export enum AdminActions {
   ATTACH_FILE_TASK = 'attach-file-task',
   NOTE_TASK = 'note-task',
   DELETE_USER = 'delete-user',
+  DISMISSAL = 'dismissal'
 }
 
 export enum UserActions {

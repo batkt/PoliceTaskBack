@@ -5,6 +5,9 @@ import { hashPassword } from "../../utils/password.util";
 import { AuthUserType, CreateUserType } from "../user/user.types";
 import { IUser, UserModel } from "./user.model";
 import { LoginHistory } from "../login-history/login-history.model";
+import { TaskModel } from "../task-v2/task.model";
+import { TaskStatus } from "../task-v2/task.types";
+import { mongoose } from "../../config/mongodb";
 
 export class UserService {
   register = async (user: AuthUserType, userData: CreateUserType) => {
@@ -14,6 +17,7 @@ export class UserService {
       deleted: { $ne: true },
     });
 
+    console.log("existingUser ", existingUser);
     if (existingUser) {
       throw new AppError(
         500,
@@ -173,5 +177,58 @@ export class UserService {
       }
     ).exec();
     return true;
+  };
+
+  dismissal = async (authUser: AuthUserType, userId: string) => {
+    const foundUser = await UserModel.findById(userId);
+    const session = await mongoose.startSession();
+    if (!foundUser) {
+      throw new AppError(500, "Dismissal", `Хэрэглэгч олдсонгүй.`);
+    }
+
+    try {
+      session.startTransaction();
+      const userTasks = await TaskModel.updateMany(
+        {
+          assignee: userId,
+          $or: [
+            { status: TaskStatus.COMPLETED },
+            { status: TaskStatus.REVIEWED },
+          ],
+        },
+        {
+          $set: {
+            isArchived: true,
+            archivedBy: authUser.id,
+          },
+        },
+        {
+          session: session,
+        }
+      );
+
+      console.log(userTasks);
+
+      const updatedUser = await UserModel.updateOne(
+        {
+          _id: userId,
+        },
+        {
+          $set: {
+            isArchived: true,
+            archivedBy: authUser.id,
+          },
+        },
+        { session: session }
+      );
+      console.log(updatedUser);
+      await session.commitTransaction();
+      session.endSession();
+      return true;
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw new AppError(500, "Dismissal", `Алдаа гарлаа.`);
+    }
   };
 }

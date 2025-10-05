@@ -41,5 +41,6 @@ router.get('/getByIds', authenticate, userController.getUsersByIds);
 
 router.get('/profile', authenticate, userController.getProfile);
 router.post('/delete/:id', authenticate, userController.delete);
+router.post('/dismissal', authenticate, userController.dismissal);
 
 export { router as userRouter };

@@ -1,13 +1,13 @@
-import { NextFunction, Request, Response } from 'express';
-import { TaskService } from './task.service';
-import { FilterQuery, Types } from 'mongoose';
-import { ITask } from './task.model';
-import { AdminActions, UserActions } from '../../types/roles';
+import { NextFunction, Request, Response } from "express";
+import { TaskService } from "./task.service";
+import { FilterQuery, Types } from "mongoose";
+import { ITask } from "./task.model";
+import { AdminActions, UserActions } from "../../types/roles";
 import {
   canAccess,
   getAccessibleBranches,
-} from '../../middleware/permission.middleware';
-import { AppError } from '../../middleware/error.middleware';
+} from "../../middleware/permission.middleware";
+import { AppError } from "../../middleware/error.middleware";
 
 export class TaskController {
   private taskService = new TaskService();
@@ -22,7 +22,7 @@ export class TaskController {
       const { formValues, ...input } = req.body;
 
       if (!input?.assignee) {
-        throw new AppError(400, 'Create Task', 'Хариуцагч сонгоогүй байна.');
+        throw new AppError(400, "Create Task", "Хариуцагч сонгоогүй байна.");
       }
 
       const action =
@@ -33,8 +33,8 @@ export class TaskController {
       if (!canAccess(authUser, action)) {
         throw new AppError(
           403,
-          'Create task',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Create task",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
 
@@ -57,15 +57,15 @@ export class TaskController {
       if (
         !canAccess(
           authUser,
-          authUser.role === 'user'
+          authUser.role === "user"
             ? UserActions.ATTACH_FILE_OWN_TASK
             : AdminActions.ATTACH_FILE_TASK
         )
       ) {
         throw new AppError(
           403,
-          'Attach file',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Attach file",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
 
@@ -130,15 +130,15 @@ export class TaskController {
       if (
         !canAccess(
           authUser,
-          authUser.role === 'user'
+          authUser.role === "user"
             ? UserActions.NOTE_OWN_TASK
             : AdminActions.NOTE_TASK
         )
       ) {
         throw new AppError(
           403,
-          'Add note',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Add note",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
 
@@ -161,15 +161,15 @@ export class TaskController {
       if (
         !canAccess(
           authUser,
-          authUser.role === 'user'
+          authUser.role === "user"
             ? UserActions.ASSIGN_TASK
             : AdminActions.ASSIGN_TASK
         )
       ) {
         throw new AppError(
           403,
-          'Add note',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Add note",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
       const note = await this.taskService.assignTask(authUser, req.body);
@@ -187,8 +187,8 @@ export class TaskController {
       if (!canAccess(authUser, AdminActions.AUDIT_TASK)) {
         throw new AppError(
           403,
-          'Audit task',
-          'Та энэ үйлдлийг хийх эрхгүй байна.'
+          "Audit task",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
         );
       }
 
@@ -224,6 +224,64 @@ export class TaskController {
     }
   }
 
+  getArchivedTasks = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const authUser = req.user!;
+      const { page, pageSize, sort, order, status, search, isArchived } =
+        req.query;
+
+      const _page = parseInt(page as string) || 1;
+      const _pageSize = parseInt(pageSize as string) || 10;
+      const _sort = (sort as string) || "createdAt";
+      const _order = (order as string) === "asc" ? "asc" : "desc";
+      const _status = status as string;
+      const _isArchived = isArchived as string;
+      const _search = search as string;
+
+      let filters: FilterQuery<ITask> = {};
+
+      if (authUser.role === "super-admin") {
+        filters = {}; // unrestricted
+      } else if (authUser.role === "admin") {
+        const branches = await getAccessibleBranches(authUser);
+        const branchObjectIds = branches.map((id) => new Types.ObjectId(id));
+        filters = { branchId: { $in: branchObjectIds } };
+      } else {
+        // user өөрийн даалгавар л үзнэ
+        filters = { assignee: authUser.id };
+      }
+      if (_status && _status !== "all") {
+        filters.status = _status;
+      }
+
+      filters.isArchived = _isArchived === "true";
+      if (_search) {
+        filters.$text = {
+          $search: _search,
+        };
+      }
+
+      const tasks = await this.taskService.getArchivedTasksFormSearch({
+        page: _page,
+        pageSize: _pageSize,
+        sortBy: _sort,
+        sortDirection: _order,
+        filters,
+      });
+
+      res.status(200).json({
+        code: 200,
+        data: tasks,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getTasksWithFormSearch = async (
     req: Request,
     res: Response,
@@ -240,39 +298,40 @@ export class TaskController {
         status,
         search,
         assignee,
+        isArchived,
         ...other
       } = req.query;
       const _page = parseInt(page as string) || 1;
       const _pageSize = parseInt(pageSize as string) || 10;
-      const _sort = (sort as string) || 'createdAt';
-      const _order = (order as string) === 'asc' ? 'asc' : 'desc';
+      const _sort = (sort as string) || "createdAt";
+      const _order = (order as string) === "asc" ? "asc" : "desc";
       const _formTemplateId = formTemplateId as string;
       const _status = status as string;
       const _assignee = assignee as string;
+      const _isArchived = isArchived as string;
       const _search = search as string;
-
-      console.log(req.query);
 
       let filters: FilterQuery<ITask> = {};
 
-      if (authUser.role === 'super-admin') {
+      if (authUser.role === "super-admin") {
         filters = {}; // unrestricted
-      } else if (authUser.role === 'admin') {
+      } else if (authUser.role === "admin") {
         const branches = await getAccessibleBranches(authUser);
-        const branchObjectIds = branches.map(id => new Types.ObjectId(id));
+        const branchObjectIds = branches.map((id) => new Types.ObjectId(id));
         filters = { branchId: { $in: branchObjectIds } };
       } else {
         // user өөрийн даалгавар л үзнэ
         filters = { assignee: authUser.id };
       }
-
-      if (_status && _status !== 'all') {
+      if (_status && _status !== "all") {
         filters.status = _status;
       }
 
       if (_assignee) {
         filters.assignee = new Types.ObjectId(_assignee);
       }
+
+      filters.isArchived = _isArchived === "true";
 
       const tasks = await this.taskService.getTasksWithFormSearch(
         {
@@ -301,8 +360,8 @@ export class TaskController {
       const authUser = req.user!;
       const page = parseInt(req.query.page as string) || 1;
       const pageSize = parseInt(req.query.pageSize as string) || 10;
-      const sort = (req.query.sort as string) || 'createdAt';
-      const order = (req.query.order as string) === 'asc' ? 'asc' : 'desc';
+      const sort = (req.query.sort as string) || "createdAt";
+      const order = (req.query.order as string) === "asc" ? "asc" : "desc";
       const formTemplateId = req.query.formTemplateId as string;
       const status = req.query.status as string;
       const search = req.query.search as string;
@@ -311,7 +370,7 @@ export class TaskController {
         assignee: authUser.id,
       };
 
-      if (status && status !== 'all') {
+      if (status && status !== "all") {
         filters.status = status;
       }
 

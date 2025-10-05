@@ -813,8 +813,6 @@ export class TaskService {
       };
     }
 
-    console.log(rootMatchQuery, " matchFilters");
-
     const data = await TaskModel.aggregate([
       {
         $match: {
@@ -870,6 +868,39 @@ export class TaskService {
       rows: data,
       total: 1,
       totalPages: 1,
+    };
+  };
+
+  getArchivedTasksFormSearch = async ({
+    page = 1,
+    pageSize = 10,
+    sortBy = "createdAt",
+    sortDirection = "desc",
+    filters = {},
+  }: Pagination & { filters: FilterQuery<ITask> }) => {
+    const skip = (page - 1) * pageSize;
+    const tasks = await TaskModel.find(filters)
+      .select("-__v -createdAt -updatedAt")
+      .populate(
+        "assignee",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate(
+        "createdBy",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate("formTemplateId", "_id name")
+      .sort({ [sortBy]: sortDirection })
+      .skip(skip)
+      .limit(pageSize);
+
+    const total = await TaskModel.countDocuments(filters);
+
+    return {
+      currentPage: page,
+      rows: tasks,
+      total,
+      totalPages: Math.ceil(total / pageSize),
     };
   };
 

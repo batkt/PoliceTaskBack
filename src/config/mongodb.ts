@@ -22,7 +22,7 @@ export async function connectDB() {
 
     await createInitialData();
     isConnected = true;
-    console.log('✅ Database connected');
+    console.log('✅ Database connected', MONGODB_URI);
   } catch (error) {
     console.error('❌ Failed to connect to database', error);
     throw error;

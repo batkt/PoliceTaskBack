@@ -128,6 +128,7 @@ export class UserController {
       const search = req.query.search as string;
       const branchId = req.query.branchId as string;
       const userIds = req.query.userIds as string;
+      const isArchived = req.query.isArchived as string;
 
       let filters: FilterQuery<IUser> = {};
       if (authUser.role === "super-admin") {
@@ -139,6 +140,8 @@ export class UserController {
         // user өөрийн даалгавар л үзнэ
         filters = { branch: authUser.branchId };
       }
+
+      filters.isArchived = isArchived === "true";
 
       if (search) {
         filters.$text = {
@@ -217,6 +220,26 @@ export class UserController {
         );
       }
       const result = await this.userService.delete(req.params.id);
+      res.status(200).json({
+        code: 200,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  dismissal = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+      if (!canAccess(authUser, AdminActions.DISMISSAL)) {
+        throw new AppError(
+          403,
+          "Dismissal",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+      const result = await this.userService.dismissal(authUser, req.body.id);
       res.status(200).json({
         code: 200,
         data: result,

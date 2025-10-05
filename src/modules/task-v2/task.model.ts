@@ -1,5 +1,5 @@
-import { Document, model, Schema, Types } from 'mongoose';
-import { TaskStatus, TaskPriority, IFieldEntry } from './task.types';
+import { Document, model, Schema, Types } from "mongoose";
+import { TaskStatus, TaskPriority, IFieldEntry } from "./task.types";
 
 export interface ITask extends Document {
   assignee: Types.ObjectId;
@@ -8,12 +8,14 @@ export interface ITask extends Document {
   priority: TaskPriority;
   branchId: Types.ObjectId;
   formTemplateId: Types.ObjectId;
+  isArchived: boolean,
   type: string;
   description?: string;
   startDate?: Date; //
   dueDate?: Date; //
   completedDate?: Date;
   createdBy: Types.ObjectId; // Хэн үүсгэсэн
+  archivedBy: Types.ObjectId; // Хэн үүсгэсэн
 }
 
 const TaskSchema = new Schema<ITask>(
@@ -22,12 +24,12 @@ const TaskSchema = new Schema<ITask>(
     description: String,
     formTemplateId: {
       type: Schema.Types.ObjectId,
-      ref: 'FormTemplate',
+      ref: "FormTemplate",
       required: true,
     },
     branchId: {
       type: Schema.Types.ObjectId,
-      ref: 'Branch',
+      ref: "Branch",
       required: true,
     },
     priority: {
@@ -40,20 +42,22 @@ const TaskSchema = new Schema<ITask>(
       enum: Object.values(TaskStatus),
       default: TaskStatus.PENDING,
     },
-    assignee: { type: Schema.Types.ObjectId, ref: 'User' },
+    isArchived: { type: Boolean, default: false },
+    assignee: { type: Schema.Types.ObjectId, ref: "User" },
     startDate: { type: Date, required: true },
     dueDate: Date,
     completedDate: Date,
+    archivedBy: { type: Schema.Types.ObjectId, ref: "User" }, // Хэн үүсгэсэн
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
   },
   { timestamps: true }
 );
 
-TaskSchema.index({ title: 'text' });
+TaskSchema.index({ title: "text" });
 
 // Index
 TaskSchema.index({
@@ -82,22 +86,22 @@ TaskSchema.index({
   dueDate: -1,
 });
 
-TaskSchema.virtual('files', {
-  ref: 'File',
-  localField: '_id',
-  foreignField: 'task',
+TaskSchema.virtual("files", {
+  ref: "File",
+  localField: "_id",
+  foreignField: "task",
 });
 
-TaskSchema.virtual('evaluations', {
-  ref: 'Evaluation',
-  localField: '_id',
-  foreignField: 'task',
+TaskSchema.virtual("evaluations", {
+  ref: "Evaluation",
+  localField: "_id",
+  foreignField: "task",
 });
 
 // virtual-уудыг JSON-д оруулах тохиргоо
-TaskSchema.set('toObject', { virtuals: true });
-TaskSchema.set('toJSON', { virtuals: true });
-export const TaskModel = model<ITask>('Task', TaskSchema);
+TaskSchema.set("toObject", { virtuals: true });
+TaskSchema.set("toJSON", { virtuals: true });
+export const TaskModel = model<ITask>("Task", TaskSchema);
 
 export interface ITaskFormData extends Document {
   taskId: Types.ObjectId;
@@ -107,10 +111,10 @@ export interface ITaskFormData extends Document {
 
 const TaskFormDataSchema = new Schema<ITaskFormData>(
   {
-    taskId: { type: Schema.Types.ObjectId, ref: 'Task', required: true },
+    taskId: { type: Schema.Types.ObjectId, ref: "Task", required: true },
     formTemplateId: {
       type: Schema.Types.ObjectId,
-      ref: 'FormTemplate',
+      ref: "FormTemplate",
       required: true,
     },
     fields: [{ key: String, value: Schema.Types.Mixed }],
@@ -118,10 +122,10 @@ const TaskFormDataSchema = new Schema<ITaskFormData>(
   { timestamps: true }
 );
 
-TaskFormDataSchema.index({ 'fields.key': 1, 'fields.value': 1 });
+TaskFormDataSchema.index({ "fields.key": 1, "fields.value": 1 });
 TaskFormDataSchema.index({ taskId: 1 });
 
 export const TaskFormDataModel = model<ITaskFormData>(
-  'TaskFormData',
+  "TaskFormData",
   TaskFormDataSchema
 );

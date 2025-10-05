@@ -32,6 +32,7 @@ router.post('/evaluate', controller.evaluateTask.bind(controller));
 
 // Хэрэглэгчийн бүх даалгавар авах
 router.get('/', controller.getTasksWithFormSearch.bind(controller));
+router.get('/archived', controller.getArchivedTasks.bind(controller));
 
 router.get('/my-list', controller.getUserTasks.bind(controller));
 
