@@ -48,7 +48,11 @@ const userSchema = new Schema<IUser>(
 
 userSchema.index(
   { workerId: 1 },
-  { unique: true, partialFilterExpression: { deleted: false } }
+  {
+    name: "unique_workerId_notDeleted",
+    unique: true,
+    partialFilterExpression: { deleted: false },
+  }
 );
 
 userSchema.index({ branch: 1, joinedDate: -1 });

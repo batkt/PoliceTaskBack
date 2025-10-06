@@ -22,6 +22,7 @@ export async function connectDB() {
 
     await createInitialData();
     isConnected = true;
+    await dropWorkerIdIndexIfExists()
     console.log('✅ Database connected', MONGODB_URI);
   } catch (error) {
     console.error('❌ Failed to connect to database', error);
@@ -71,3 +72,18 @@ const createInitialData = async () => {
   }
 };
 export { mongoose };
+
+async function dropWorkerIdIndexIfExists() {
+  const collection = mongoose.connection.collection("users");
+
+  const indexes = await collection.indexes();
+  const indexExists = indexes.some(idx => idx.name === "workerId_1");
+
+  if (indexExists) {
+    console.log("Dropping index workerId_1 ...");
+    await collection.dropIndex("workerId_1");
+    console.log("Index workerId_1 dropped!");
+  } else {
+    console.log("Index workerId_1 does not exist.");
+  }
+}
