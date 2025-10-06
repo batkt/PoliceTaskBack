@@ -1,7 +1,7 @@
-import mongoose from 'mongoose';
-import { UserModel } from '../modules/user/user.model';
-import { AuthService } from '../modules/auth/auth.service';
-import { BranchModel } from '../modules/branch/branch.model';
+import mongoose from "mongoose";
+import { UserModel } from "../modules/user/user.model";
+import { AuthService } from "../modules/auth/auth.service";
+import { BranchModel } from "../modules/branch/branch.model";
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 const ADMIN_WORKER_ID = process.env.ADMIN_WORKER_ID!;
@@ -11,7 +11,7 @@ let isConnected = false;
 
 export async function connectDB() {
   if (isConnected) {
-    console.log('✅ Using existing database connection');
+    console.log("✅ Using existing database connection");
     return;
   }
 
@@ -22,10 +22,9 @@ export async function connectDB() {
 
     await createInitialData();
     isConnected = true;
-    await dropWorkerIdIndexIfExists()
-    console.log('✅ Database connected', MONGODB_URI);
+    console.log("✅ Database connected", MONGODB_URI);
   } catch (error) {
-    console.error('❌ Failed to connect to database', error);
+    console.error("❌ Failed to connect to database", error);
     throw error;
   }
 }
@@ -34,7 +33,7 @@ const createInitialData = async () => {
   const authService = new AuthService();
 
   if (!ADMIN_WORKER_ID || !ADMIN_PASSWORD) {
-    throw new Error('ADMIN_WORKER_ID or ADMIN_PASSWORD is not configured');
+    throw new Error("ADMIN_WORKER_ID or ADMIN_PASSWORD is not configured");
   }
   const adminUser = await UserModel.findOne({
     workerId: ADMIN_WORKER_ID,
@@ -42,7 +41,7 @@ const createInitialData = async () => {
 
   if (!adminUser) {
     let branchId = null;
-    const branchName = 'Тээврийн цагдаагийн алба';
+    const branchName = "Тээврийн цагдаагийн алба";
     const parentBranch = await BranchModel.findOne({
       name: branchName,
     });
@@ -51,9 +50,9 @@ const createInitialData = async () => {
       const newBranch = await BranchModel.create({
         name: branchName,
         isParent: true, // эцэг салбар эсэх
-        path: '',
+        path: "",
       });
-      console.log('created parent branch');
+      console.log("created parent branch");
       branchId = newBranch?._id;
     } else {
       branchId = parentBranch?._id;
@@ -62,28 +61,13 @@ const createInitialData = async () => {
     const newUser = await authService.registerSuperAdmin({
       workerId: ADMIN_WORKER_ID, // Ажилтны ID
       password: ADMIN_PASSWORD, // Нууц үг
-      surname: 'Super', // Овог
+      surname: "Super", // Овог
       branch: branchId as string,
-      givenname: 'Admin', // Нэр
-      position: 'super-admin', // Албан тушаал
-      rank: 'super-admin',
+      givenname: "Admin", // Нэр
+      position: "super-admin", // Албан тушаал
+      rank: "super-admin",
     });
-    console.log('created admin user');
+    console.log("created admin user");
   }
 };
 export { mongoose };
-
-async function dropWorkerIdIndexIfExists() {
-  const collection = mongoose.connection.collection("users");
-
-  const indexes = await collection.indexes();
-  const indexExists = indexes.some(idx => idx.name === "workerId_1");
-
-  if (indexExists) {
-    console.log("Dropping index workerId_1 ...");
-    await collection.dropIndex("workerId_1");
-    console.log("Index workerId_1 dropped!");
-  } else {
-    console.log("Index workerId_1 does not exist.");
-  }
-}
