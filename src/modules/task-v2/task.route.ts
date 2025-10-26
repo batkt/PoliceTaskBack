@@ -35,8 +35,13 @@ router.get('/', controller.getTasksWithFormSearch.bind(controller));
 router.get('/archived', controller.getArchivedTasks.bind(controller));
 
 router.get('/my-list', controller.getUserTasks.bind(controller));
+router.get('/my-list-week', controller.getUserTasksWeek.bind(controller));
+
+// Тайлангийн жагсаалт
+router.get('/report-list', controller.getTaskReport.bind(controller));
 
 // Даалгаврын дэлгэрэнгүй
 router.get('/:id', controller.getTaskDetail.bind(controller));
+
 
 export { router as taskV2Router };

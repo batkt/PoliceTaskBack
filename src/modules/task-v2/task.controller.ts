@@ -8,6 +8,7 @@ import {
   getAccessibleBranches,
 } from "../../middleware/permission.middleware";
 import { AppError } from "../../middleware/error.middleware";
+import { DateRangeType, getDateRange } from "../../utils/date.utils";
 
 export class TaskController {
   private taskService = new TaskService();
@@ -367,7 +368,14 @@ export class TaskController {
       const search = req.query.search as string;
 
       let filters: FilterQuery<ITask> = {
-        assignee: authUser.id,
+        $or: [
+          {
+            assignee: authUser.id,
+          },
+          {
+            supervisors: authUser.id,
+          },
+        ],
       };
 
       if (status && status !== "all") {
@@ -400,11 +408,96 @@ export class TaskController {
     }
   };
 
+  getUserTasksWeek = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const authUser = req.user!;
+      const startDate = new Date((req.query.startDate as string) || Date.now());
+      const { endDate: filterEnd, startDate: filterStart } = getDateRange(
+        startDate,
+        DateRangeType.WEEK
+      );
+      const sort = (req.query.sort as string) || "createdAt";
+      const order = (req.query.order as string) === "asc" ? "asc" : "desc";
+      const formTemplateId = req.query.formTemplateId as string;
+      ``;
+      const status = req.query.status as string;
+      const search = req.query.search as string;
+
+      let filters: FilterQuery<ITask> = {
+        $or: [
+          {
+            assignee: authUser.id,
+          },
+          {
+            supervisors: authUser.id,
+          },
+        ],
+        $and: [
+          { startDate: { $lte: filterEnd } },
+          {
+            $or: [
+              { dueDate: { $exists: true, $gte: filterStart } },
+              {
+                dueDate: { $exists: false },
+                startDate: { $gte: filterStart },
+              },
+            ],
+          },
+        ],
+      };
+
+      if (status && status !== "all") {
+        filters.status = status;
+      }
+
+      if (formTemplateId) {
+        filters.formTemplateId = formTemplateId;
+      }
+      if (search) {
+        filters.$text = {
+          $search: search,
+        };
+      }
+
+      const tasks = await this.taskService.getUserTasksWeek({
+        sortBy: sort,
+        sortDirection: order,
+        filters,
+      });
+
+      res.status(200).json({
+        code: 200,
+        data: tasks,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   async getTaskDetail(req: Request, res: Response, next: NextFunction) {
     try {
       const taskId = req.params.id;
       const task = await this.taskService.getTaskDetail(taskId);
       this.handleSuccess(res, task);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getTaskReport(req: Request, res: Response, next: NextFunction) {
+    try {
+      const authUser = req.user!;
+      const { startDate, endDate, branchId } = req.body;
+      const report = await this.taskService.getTaskReport(authUser, {
+        startDate,
+        endDate,
+        branchId,
+      });
+      this.handleSuccess(res, report);
     } catch (error) {
       next(error);
     }

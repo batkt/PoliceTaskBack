@@ -8,11 +8,12 @@ export interface ITask extends Document {
   priority: TaskPriority;
   branchId: Types.ObjectId;
   formTemplateId: Types.ObjectId;
-  isArchived: boolean,
+  isArchived: boolean;
   type: string;
   description?: string;
   startDate?: Date; //
   dueDate?: Date; //
+  supervisors: Types.ObjectId[];
   completedDate?: Date;
   createdBy: Types.ObjectId; // Хэн үүсгэсэн
   archivedBy: Types.ObjectId; // Хэн үүсгэсэн
@@ -44,6 +45,7 @@ const TaskSchema = new Schema<ITask>(
     },
     isArchived: { type: Boolean, default: false },
     assignee: { type: Schema.Types.ObjectId, ref: "User" },
+    supervisors: { type: [Schema.Types.ObjectId], ref: "User" },
     startDate: { type: Date, required: true },
     dueDate: Date,
     completedDate: Date,

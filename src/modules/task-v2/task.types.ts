@@ -5,6 +5,7 @@ export interface ICreateTaskInput {
   branchId: string;
   description?: string;
   assignee: string;
+  supervisors: string[];
   startDate: Date;
   dueDate?: Date;
   fileIds?: string[]; // optional

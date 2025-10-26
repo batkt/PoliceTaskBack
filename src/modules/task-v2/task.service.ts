@@ -937,4 +937,56 @@ export class TaskService {
       totalPages: Math.ceil(total / pageSize),
     };
   };
+
+  getUserTasksWeek = async ({
+    sortBy = "createdAt",
+    sortDirection = "desc",
+    filters = {},
+  }: Pagination & { filters: FilterQuery<ITask> }) => {
+    const tasks = await TaskModel.find(filters)
+      .select("-__v -createdAt -updatedAt")
+      .populate(
+        "assignee",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate(
+        "createdBy",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate("formTemplateId", "_id name")
+      .sort({ [sortBy]: sortDirection });
+
+    const total = await TaskModel.countDocuments(filters);
+
+    return {
+      rows: tasks,
+      total,
+    };
+  };
+
+  getTaskReport = async (
+    authUser: AuthUserType,
+    filters: Record<string, string>
+  ) => {
+    const tasks = await TaskModel.find({
+      assignee: authUser.id,
+      status: { $in: [TaskStatus.COMPLETED, TaskStatus.REVIEWED] },
+    })
+      .select("-__v -createdAt -updatedAt")
+      .populate(
+        "assignee",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate(
+        "createdBy",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate(
+        "supervisors",
+        "_id givenname surname position rank profileImageUrl"
+      )
+      .populate("formTemplateId", "_id name")
+      .sort({ createdAt: -1 });
+    return tasks;
+  };
 }

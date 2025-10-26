@@ -28,7 +28,6 @@ import { formRouter } from "./modules/form/form.route";
 import { noteRouter } from "./modules/note/note.route";
 import { auditRouter } from "./modules/audit/audit.route";
 import { activityRouter } from "./modules/activity/activity.route";
-import { UserModel } from "./modules/user/user.model";
 
 const app = express();
 
