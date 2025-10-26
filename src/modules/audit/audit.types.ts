@@ -6,5 +6,6 @@ export enum AuditResult {
 export interface IAuditInput {
   taskId: string;
   comments: string;
+  point?: number;
   result: 'approved' | 'rejected';
 }

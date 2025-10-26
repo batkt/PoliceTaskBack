@@ -428,6 +428,7 @@ export class TaskService {
     const audit = await AuditModel.create({
       task: input.taskId,
       comments: input.comments,
+      point: input.point,
       result: input.result,
       checkedBy: authUser.id,
     });

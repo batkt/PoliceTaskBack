@@ -183,7 +183,7 @@ export class TaskController {
   async auditTask(req: Request, res: Response, next: NextFunction) {
     try {
       const authUser = req.user!;
-      const { taskId, comments, result } = req.body;
+      const { taskId, comments, result, point } = req.body;
 
       if (!canAccess(authUser, AdminActions.AUDIT_TASK)) {
         throw new AppError(
@@ -197,6 +197,7 @@ export class TaskController {
         {
           taskId,
           comments,
+          point,
           result,
         },
         authUser
