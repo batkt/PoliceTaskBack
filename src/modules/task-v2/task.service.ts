@@ -303,12 +303,18 @@ export class TaskService {
     return task;
   }
 
-  async completeTask(taskId: string, authUser: AuthUserType) {
+  async completeTask(
+    authUser: AuthUserType,
+    data: {
+      taskId: string;
+      summary: string;
+    }
+  ) {
     const user = await UserModel.findById(authUser.id);
     if (!user) {
       throw new AppError(404, "CompleteTask", "Хэрэглэгч олдсонгүй");
     }
-    const task = await TaskModel.findById(taskId);
+    const task = await TaskModel.findById(data.taskId);
     if (!task) throw new AppError(404, "CompleteTask", "Даалгавар олдсонгүй");
     if (task.assignee.toString() !== user.id)
       throw new AppError(
@@ -333,6 +339,7 @@ export class TaskService {
     const currentStatus = task.status;
     const newStatus = TaskStatus.COMPLETED;
     task.status = newStatus;
+    task.summary = data.summary;
     await task.save();
     await changeCountStatus(currentStatus, newStatus);
     this.socketService.broadcastDashboardStats();
@@ -423,6 +430,10 @@ export class TaskService {
         "AuditTask",
         "Даалгавар дууссан төлөвтэй байх ёстой"
       );
+    }
+
+    if (!task.supervisors.find((it) => it.toString() === authUser.id)) {
+      throw new AppError(400, "AuditTask", "Та даалгаврыг хянах эрхгүй байна");
     }
 
     const audit = await AuditModel.create({
@@ -604,6 +615,14 @@ export class TaskService {
       },
       {
         $lookup: {
+          from: "users",
+          localField: "supervisors",
+          foreignField: "_id",
+          as: "supervisorUsers",
+        },
+      },
+      {
+        $lookup: {
           from: "files",
           localField: "_id",
           foreignField: "task",
@@ -777,7 +796,7 @@ export class TaskService {
       title: 1,
       status: 1,
       startDate: 1,
-      endDate: 1,
+      dueDate: 1,
       priority: 1,
       assignee: {
         _id: 1,

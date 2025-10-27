@@ -17,7 +17,6 @@ export class UserService {
       deleted: { $ne: true },
     });
 
-    console.log("existingUser ", existingUser);
     if (existingUser) {
       throw new AppError(
         500,
@@ -207,8 +206,6 @@ export class UserService {
         }
       );
 
-      console.log(userTasks);
-
       const updatedUser = await UserModel.updateOne(
         {
           _id: userId,
@@ -221,7 +218,6 @@ export class UserService {
         },
         { session: session }
       );
-      console.log(updatedUser);
       await session.commitTransaction();
       session.endSession();
       return true;

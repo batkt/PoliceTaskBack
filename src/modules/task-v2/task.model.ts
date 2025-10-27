@@ -15,6 +15,7 @@ export interface ITask extends Document {
   dueDate?: Date; //
   supervisors: Types.ObjectId[];
   completedDate?: Date;
+  summary?: string;
   createdBy: Types.ObjectId; // Хэн үүсгэсэн
   archivedBy: Types.ObjectId; // Хэн үүсгэсэн
 }
@@ -48,6 +49,7 @@ const TaskSchema = new Schema<ITask>(
     supervisors: { type: [Schema.Types.ObjectId], ref: "User" },
     startDate: { type: Date, required: true },
     dueDate: Date,
+    summary: String,
     completedDate: Date,
     archivedBy: { type: Schema.Types.ObjectId, ref: "User" }, // Хэн үүсгэсэн
     createdBy: {

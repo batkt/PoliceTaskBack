@@ -115,8 +115,11 @@ export class TaskController {
   async completeTask(req: Request, res: Response, next: NextFunction) {
     try {
       const authUser = req.user!;
-      const { taskId } = req.body;
-      const task = await this.taskService.completeTask(taskId, authUser);
+      const { taskId, summary } = req.body;
+      const task = await this.taskService.completeTask(authUser, {
+        taskId,
+        summary,
+      });
       this.handleSuccess(res, task);
     } catch (error) {
       next(error);
@@ -185,13 +188,13 @@ export class TaskController {
       const authUser = req.user!;
       const { taskId, comments, result, point } = req.body;
 
-      if (!canAccess(authUser, AdminActions.AUDIT_TASK)) {
-        throw new AppError(
-          403,
-          "Audit task",
-          "Та энэ үйлдлийг хийх эрхгүй байна."
-        );
-      }
+      // if (!canAccess(authUser, AdminActions.AUDIT_TASK)) {
+      //   throw new AppError(
+      //     403,
+      //     "Audit task",
+      //     "Та энэ үйлдлийг хийх эрхгүй байна."
+      //   );
+      // }
 
       const audit = await this.taskService.auditTask(
         {
