@@ -11,4 +11,9 @@ const AuditSchema = new Schema(
   { timestamps: true }
 );
 
+AuditSchema.index({
+  createdAt: 1,
+  result: 1,
+});
+
 export const AuditModel = mongoose.model("Audit", AuditSchema);

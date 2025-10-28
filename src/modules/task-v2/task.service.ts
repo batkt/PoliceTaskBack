@@ -27,6 +27,7 @@ import {
 } from "../activity/activity.service";
 import { getAccessibleBranches } from "../../middleware/permission.middleware";
 import { getRankWithName } from "../../utils/user.util";
+import { pipeline } from "stream";
 
 export class TaskService {
   private notificationService: NotificationService;
@@ -340,6 +341,7 @@ export class TaskService {
     const newStatus = TaskStatus.COMPLETED;
     task.status = newStatus;
     task.summary = data.summary;
+    task.completedDate = new Date();
     await task.save();
     await changeCountStatus(currentStatus, newStatus);
     this.socketService.broadcastDashboardStats();
@@ -986,27 +988,132 @@ export class TaskService {
 
   getTaskReport = async (
     authUser: AuthUserType,
-    filters: Record<string, string>
+    filters: {
+      startDate: Date;
+      endDate: Date;
+    }
   ) => {
-    const tasks = await TaskModel.find({
-      assignee: authUser.id,
-      status: { $in: [TaskStatus.COMPLETED, TaskStatus.REVIEWED] },
-    })
-      .select("-__v -createdAt -updatedAt")
-      .populate(
-        "assignee",
-        "_id givenname surname position rank profileImageUrl"
-      )
-      .populate(
-        "createdBy",
-        "_id givenname surname position rank profileImageUrl"
-      )
-      .populate(
-        "supervisors",
-        "_id givenname surname position rank profileImageUrl"
-      )
-      .populate("formTemplateId", "_id name")
-      .sort({ createdAt: -1 });
+    const tasks = await AuditModel.aggregate([
+      {
+        $match: {
+          result: "approved",
+          createdAt: {
+            $gte: filters.startDate,
+            $lte: filters.endDate,
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "tasks",
+          localField: "task",
+          foreignField: "_id",
+          as: "task",
+        },
+      },
+      {
+        $unwind: { path: "$task" },
+      },
+      {
+        $match: {
+          "task.assignee": new Types.ObjectId(authUser.id),
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "task.supervisors",
+          foreignField: "_id",
+          as: "task.supervisors",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "task.createdBy",
+          foreignField: "_id",
+          as: "task.createdBy",
+        },
+      },
+      {
+        $unwind: { path: "$task.createdBy", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "formtemplates",
+          localField: "task.formTemplateId",
+          foreignField: "_id",
+          as: "task.formTemplate",
+        },
+      },
+      {
+        $unwind: {
+          path: "$task.formTemplate",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "checkedBy",
+          foreignField: "_id",
+          as: "checkedBy",
+        },
+      },
+      {
+        $unwind: { path: "$checkedBy", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $project: {
+          result: 1,
+          comments: 1,
+          point: 1,
+          createdAt: 1,
+          checkedBy: {
+            _id: 1,
+            givenname: 1,
+            surname: 1,
+            position: 1,
+            rank: 1,
+            profileImageUrl: 1,
+          },
+          task: {
+            _id: 1,
+            title: 1,
+            status: 1,
+            description: 1,
+            startDate: 1,
+            summary: 1,
+            completedDate: 1,
+            dueDate: 1,
+            createdBy: {
+              _id: 1,
+              givenname: 1,
+              surname: 1,
+              position: 1,
+              rank: 1,
+              profileImageUrl: 1,
+            },
+            supervisors: {
+              _id: 1,
+              givenname: 1,
+              surname: 1,
+              position: 1,
+              rank: 1,
+              profileImageUrl: 1,
+            },
+            formTemplate: {
+              _id: 1,
+              name: 1,
+            },
+          },
+        },
+      },
+    ]);
+
     return tasks;
   };
 }

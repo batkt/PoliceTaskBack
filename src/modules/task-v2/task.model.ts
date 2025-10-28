@@ -18,6 +18,7 @@ export interface ITask extends Document {
   summary?: string;
   createdBy: Types.ObjectId; // Хэн үүсгэсэн
   archivedBy: Types.ObjectId; // Хэн үүсгэсэн
+  updatedAt: Date;
 }
 
 const TaskSchema = new Schema<ITask>(

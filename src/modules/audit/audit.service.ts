@@ -1,8 +1,3 @@
-import {
-  generateActivityMessage,
-  logTaskActivity,
-} from '../activity/activity.service';
-import { AuthUserType } from '../user/user.types';
 import { AuditModel } from './audit.model';
 
 export class AuditService {

@@ -495,12 +495,18 @@ export class TaskController {
   async getTaskReport(req: Request, res: Response, next: NextFunction) {
     try {
       const authUser = req.user!;
-      const { startDate, endDate, branchId } = req.body;
+      const { type = "weekly" } = req.query;
+
+      const { startDate, endDate } = getDateRange(
+        new Date(),
+        type as DateRangeType
+      );
+
       const report = await this.taskService.getTaskReport(authUser, {
         startDate,
         endDate,
-        branchId,
       });
+      
       this.handleSuccess(res, report);
     } catch (error) {
       next(error);
