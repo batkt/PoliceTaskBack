@@ -10,6 +10,8 @@ router.post('/', controller.createTask.bind(controller));
 // Даалгаварт файл холбох
 router.post('/file', controller.addFileToTask.bind(controller));
 
+router.post('/removeFile', controller.removeFileFromTask.bind(controller));
+
 // Даалгавар эхлүүлэх (in_progress)
 router.post('/start', controller.startTask.bind(controller));
 
@@ -19,6 +21,9 @@ router.post('/complete', controller.completeTask.bind(controller));
 // Даалгаварт тэмдэглэл нэмэх
 router.post('/note', controller.addNote.bind(controller));
 
+// Хуваарилах
+router.post('/assign', controller.assignTask.bind(controller));
+
 // Хяналт хийх (approved/rejected)
 router.post('/audit', controller.auditTask.bind(controller));
 
@@ -26,9 +31,17 @@ router.post('/audit', controller.auditTask.bind(controller));
 router.post('/evaluate', controller.evaluateTask.bind(controller));
 
 // Хэрэглэгчийн бүх даалгавар авах
-router.get('/', controller.getTasks.bind(controller));
+router.get('/', controller.getTasksWithFormSearch.bind(controller));
+router.get('/archived', controller.getArchivedTasks.bind(controller));
+
+router.get('/my-list', controller.getUserTasks.bind(controller));
+router.get('/my-list-week', controller.getUserTasksWeek.bind(controller));
+
+// Тайлангийн жагсаалт
+router.get('/report-list', controller.getTaskReport.bind(controller));
 
 // Даалгаврын дэлгэрэнгүй
 router.get('/:id', controller.getTaskDetail.bind(controller));
+
 
 export { router as taskV2Router };

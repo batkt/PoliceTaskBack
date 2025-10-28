@@ -1,8 +1,11 @@
 export interface ICreateTaskInput {
   priority?: 'low' | 'medium' | 'high';
   title: string;
+  formTemplateId: string;
+  branchId: string;
   description?: string;
-  assignees: string[];
+  assignee: string;
+  supervisors: string[];
   startDate: Date;
   dueDate?: Date;
   fileIds?: string[]; // optional
@@ -20,4 +23,9 @@ export enum TaskPriority {
   LOW = 'low',
   MEDIUM = 'medium',
   HIGH = 'high',
+}
+
+export interface IFieldEntry {
+  key: string;
+  value: any;
 }

@@ -20,10 +20,16 @@ const LoginHistorySchema = new Schema<ILoginHistory>({
   browser: String,
   os: String,
   device: String,
-  createdAt: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now, index: true },
   location: String,
   success: { type: Boolean, required: true },
   reason: String,
+});
+
+LoginHistorySchema.index({
+  userId: 1,
+  success: 1,
+  createdAt: 1,
 });
 
 export const LoginHistory = model<ILoginHistory>(

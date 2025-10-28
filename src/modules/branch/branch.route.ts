@@ -15,7 +15,14 @@ router.post(
   branchController.createBranch
 );
 
+router.post(
+  '/update',
+  authenticate,
+  branchController.updateBranch
+);
+
 router.get('/', authenticate, branchController.getAll);
-router.get('/:id/children', authenticate, branchController.getChildren);
+router.get('/getOwnBranches', authenticate, branchController.getChildren);
+router.post('/delete/:id', authenticate, branchController.delete);
 
 export { router as branchRouter };

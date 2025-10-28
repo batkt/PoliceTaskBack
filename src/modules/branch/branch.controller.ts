@@ -1,5 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
-import { BranchService } from './branch.service';
+import { NextFunction, Request, Response } from "express";
+import { BranchService } from "./branch.service";
+import { AdminActions, SuperAdminActions } from "../../types/roles";
+import { canAccess } from "../../middleware/permission.middleware";
+import { AppError } from "../../middleware/error.middleware";
 
 export class BranchController {
   private branchService: BranchService;
@@ -11,6 +14,15 @@ export class BranchController {
   createBranch = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const authUser = req.user!;
+
+      if (!canAccess(authUser, SuperAdminActions.CREATE_BRANCH)) {
+        throw new AppError(
+          403,
+          "Create branch",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+
       const branch = await this.branchService.createBranch(authUser, req.body);
       res.status(201).json({
         code: 200,
@@ -21,10 +33,31 @@ export class BranchController {
     }
   };
 
+  updateBranch = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+      if (!canAccess(authUser, AdminActions.UPDATE_USER)) {
+        throw new AppError(
+          403,
+          "Update branch",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+      const result = await this.branchService.updateBranch(authUser, req.body);
+      res.status(200).json({
+        code: 200,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getChildren = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authUser = req.user!;
       const branches = await this.branchService.getBranchWithChildren(
-        req.params.id
+        authUser.branchId
       );
       res.send({
         code: 200,
@@ -43,6 +76,28 @@ export class BranchController {
         data: branches,
       });
     } catch (error: any) {
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authUser = req.user!;
+
+      if (!canAccess(authUser, SuperAdminActions.DELETE_BRANCH)) {
+        throw new AppError(
+          403,
+          "Delete branch",
+          "Та энэ үйлдлийг хийх эрхгүй байна."
+        );
+      }
+
+      const result = await this.branchService.delete(req.params.id);
+      res.status(200).json({
+        code: 200,
+        data: result,
+      });
+    } catch (error) {
       next(error);
     }
   };

@@ -18,6 +18,18 @@ router.post(
   userController.register
 );
 
+router.post(
+  '/update',
+  authenticate,
+  userController.update
+);
+
+router.post(
+  '/changeUserPassword',
+  authenticate,
+  userController.changeUserPassword
+);
+
 router.get(
   '/list',
   authenticate,
@@ -25,8 +37,10 @@ router.get(
   userController.getList
 );
 
-router.get('/all', authenticate, userController.getAll);
+router.get('/getByIds', authenticate, userController.getUsersByIds);
 
 router.get('/profile', authenticate, userController.getProfile);
+router.post('/delete/:id', authenticate, userController.delete);
+router.post('/dismissal', authenticate, userController.dismissal);
 
 export { router as userRouter };

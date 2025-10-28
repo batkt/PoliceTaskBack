@@ -14,13 +14,14 @@ export let io: Server;
 export function initSocket(server: any): void {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: process.env.FRONTEND_URL || 'http://localhost:4000',
       methods: ['GET', 'POST'],
       credentials: true,
     },
   });
+  const PORT = process.env.PORT!;
   console.log(
-    `✅ Socket ready: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`
+    `✅ Socket ready: http://localhost:${PORT}`
   );
 
   io.use(socketAuthenticate);
