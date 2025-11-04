@@ -993,86 +993,88 @@ export class TaskService {
       endDate: Date;
     }
   ) => {
-    const tasks = await AuditModel.aggregate([
+    const tasks = await TaskModel.aggregate([
       {
         $match: {
-          result: "approved",
-          createdAt: {
-            $gte: filters.startDate,
-            $lte: filters.endDate,
-          },
+          assignee: new Types.ObjectId(authUser.id),
+          status: TaskStatus.REVIEWED,
         },
       },
       {
         $lookup: {
-          from: "tasks",
-          localField: "task",
-          foreignField: "_id",
-          as: "task",
+          from: "audits",
+          localField: "_id",
+          foreignField: "task",
+          as: "audit",
+          pipeline: [
+            {
+              $match: {
+                result: "approved",
+                createdAt: { $gte: filters.startDate, $lte: filters.endDate },
+              },
+            },
+          ],
         },
       },
+      { $unwind: "$audit" },
       {
-        $unwind: { path: "$task" },
-      },
-      {
-        $match: {
-          "task.assignee": new Types.ObjectId(authUser.id),
+        $lookup: {
+          from: "users",
+          localField: "supervisors",
+          foreignField: "_id",
+          as: "supervisors",
         },
       },
       {
         $lookup: {
           from: "users",
-          localField: "task.supervisors",
+          localField: "createdBy",
           foreignField: "_id",
-          as: "task.supervisors",
+          as: "createdBy",
         },
       },
       {
-        $lookup: {
-          from: "users",
-          localField: "task.createdBy",
-          foreignField: "_id",
-          as: "task.createdBy",
-        },
-      },
-      {
-        $unwind: { path: "$task.createdBy", preserveNullAndEmptyArrays: true },
+        $unwind: { path: "$createdBy", preserveNullAndEmptyArrays: true },
       },
       {
         $lookup: {
           from: "formtemplates",
-          localField: "task.formTemplateId",
+          localField: "formTemplateId",
           foreignField: "_id",
-          as: "task.formTemplate",
+          as: "formTemplate",
         },
       },
       {
         $unwind: {
-          path: "$task.formTemplate",
+          path: "$formTemplate",
           preserveNullAndEmptyArrays: true,
         },
       },
       {
         $lookup: {
           from: "users",
-          localField: "checkedBy",
+          localField: "audit.checkedBy",
           foreignField: "_id",
-          as: "checkedBy",
+          as: "audit.checkedBy",
         },
       },
       {
-        $unwind: { path: "$checkedBy", preserveNullAndEmptyArrays: true },
+        $unwind: { path: "$audit.checkedBy", preserveNullAndEmptyArrays: true },
       },
       {
         $sort: { createdAt: -1 },
       },
       {
         $project: {
-          result: 1,
-          comments: 1,
-          point: 1,
-          createdAt: 1,
-          checkedBy: {
+          _id: 1,
+          title: 1,
+          status: 1,
+          description: 1,
+          startDate: 1,
+          summary: 1,
+          completedDate: 1,
+          dueDate: 1,
+          supervisors: {
             _id: 1,
             givenname: 1,
             surname: 1,
@@ -1080,40 +1082,36 @@ export class TaskService {
             rank: 1,
             profileImageUrl: 1,
           },
-          task: {
+          createdBy: {
             _id: 1,
-            title: 1,
-            status: 1,
-            description: 1,
-            startDate: 1,
-            summary: 1,
-            completedDate: 1,
-            dueDate: 1,
-            createdBy: {
+            givenname: 1,
+            surname: 1,
+            position: 1,
+            rank: 1,
+            profileImageUrl: 1,
+          },
+          formTemplate: {
+            _id: 1,
+            name: 1,
+          },
+          audit: {
+            _id: 1,
+            result: 1,
+            comments: 1,
+            point: 1,
+            createdAt: 1,
+            checkedBy: {
               _id: 1,
               givenname: 1,
               surname: 1,
               position: 1,
               rank: 1,
               profileImageUrl: 1,
-            },
-            supervisors: {
-              _id: 1,
-              givenname: 1,
-              surname: 1,
-              position: 1,
-              rank: 1,
-              profileImageUrl: 1,
-            },
-            formTemplate: {
-              _id: 1,
-              name: 1,
             },
           },
         },
       },
     ]);
-
     return tasks;
   };
 }

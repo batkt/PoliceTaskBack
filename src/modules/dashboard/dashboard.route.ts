@@ -12,4 +12,7 @@ router.get(
   dashboardController.getTaskStatusCounts
 );
 
+router.get("/master", authenticate, dashboardController.getMasterDashboard);
+router.get("/top-bottom-performers", authenticate, dashboardController.getTopBottomPerformers);
+
 export { router as dashboardRouter };
