@@ -17,7 +17,7 @@ module.exports = {
         REDIS_URL: "redis://localhost:6379",
         ADMIN_WORKER_ID: "admin",
         ADMIN_PASSWORD: "123456",
-        BASE_URL: "http://localhost:4000",
+        BASE_URL: "http://localhost:8085",
       },
     },
   ],
