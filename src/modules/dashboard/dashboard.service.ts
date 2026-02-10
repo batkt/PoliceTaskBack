@@ -5,10 +5,19 @@ import {
   setStatsCount,
 } from '../../utils/redis.util';
 import { TaskModel } from '../task-v2/task.model';
-import { fromZonedTime } from 'date-fns-tz';
 import { AuditModel } from '../audit/audit.model';
 import { AuthUserType } from '../user/user.types';
 import { BranchModel } from '../branch/branch.model';
+
+
+function fromZonedTime(dateStr: string, timeZone: string): Date {
+  const localDate = new Date(dateStr);
+  const utcDate = new Date(localDate.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const tzDate = new Date(localDate.toLocaleString('en-US', { timeZone }));
+  const offset = utcDate.getTime() - tzDate.getTime();
+
+  return new Date(localDate.getTime() + offset);
+}
 
 export interface DateRangeFilter {
   startDate: Date;
